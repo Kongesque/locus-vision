@@ -7,7 +7,6 @@
 	<div
 		class="flex min-h-[100vh] flex-1 flex-col items-center justify-center gap-4 rounded-xl bg-muted/50 md:min-h-min"
 	>
-		<h1>Welcome to LocusVision</h1>
-		<p>Dashboard content goes here.</p>
+		<p>Settings content goes here.</p>
 	</div>
 </div>
