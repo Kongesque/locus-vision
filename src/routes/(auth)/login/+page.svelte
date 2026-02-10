@@ -9,6 +9,10 @@
 	let showPassword = $state(false);
 </script>
 
+<svelte:head>
+	<title>Login · Locus</title>
+</svelte:head>
+
 <div class="flex min-h-svh flex-col">
 	<!-- Logo -->
 	<div class="p-6">
@@ -16,7 +20,7 @@
 	</div>
 
 	<!-- Form centered -->
-	<div class="flex flex-1 items-center justify-center pb-20">
+	<div class="flex flex-1 items-center justify-center px-6 pb-20">
 		<div class="w-full max-w-md space-y-4">
 			<h1 class="text-center text-2xl font-semibold">Sign in to Locus Vision</h1>
 

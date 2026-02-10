@@ -3,6 +3,10 @@
 	import UploadArea from '$lib/components/video-analytics/upload-area.svelte';
 </script>
 
+<svelte:head>
+	<title>Video Analytics · Locus</title>
+</svelte:head>
+
 <div class="flex flex-1 flex-col gap-4 p-4">
 	<PageTitle2 />
 	<UploadArea />
