@@ -108,13 +108,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --animate-echo-inner: echo-inner-op 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  --animate-echo-middle: echo-middle-rot 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  --animate-echo-outer: echo-outer-rot 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-echo-inner: echo-inner-op 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-echo-middle: echo-middle-rot 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-echo-outer: echo-outer-rot 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 
   @keyframes echo-inner-op {
-    0%, 100% { opacity: 0.85; }
-    50% { opacity: 1; }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
   }
   @keyframes echo-middle-rot {
     0% { transform: rotate(0deg) scale(1); }

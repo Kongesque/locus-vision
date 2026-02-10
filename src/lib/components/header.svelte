@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { SidebarTrigger } from '$lib/components/ui/sidebar/index.js';
+	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import { cn } from '$lib/utils.js';
 	import PageTitle from '$lib/components/page-title-1.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	let {
-		class: className = undefined,
-		cursorClass = undefined
+		class: className = undefined
 	}: {
 		class?: string;
-		cursorClass?: string;
 	} = $props();
+
+	const sidebar = useSidebar();
 </script>
 
 <header
@@ -20,7 +21,7 @@
 	)}
 >
 	<div class="flex items-center gap-4">
-		<SidebarTrigger class={cn('-ml-2.5', cursorClass)} />
+		<SidebarTrigger class={cn('-ml-2.5', sidebar.open ? 'cursor-w-resize' : 'cursor-e-resize')} />
 		<PageTitle />
 	</div>
 	<div class="flex items-center gap-2">

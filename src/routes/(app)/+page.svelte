@@ -12,7 +12,7 @@
 	<div class="flex flex-1 flex-col items-center justify-center gap-6 rounded-xl bg-muted/50">
 		<EchoLoader class="size-12" />
 		<div class="space-y-2 text-center">
-			<h1 class="text-2xl font-bold">Welcome to LocusVision</h1>
+			<h1 class="text-2xl font-bold">Welcome to Locus Vision</h1>
 			<p class="text-muted-foreground">Dashboard content goes here.</p>
 		</div>
 	</div>
