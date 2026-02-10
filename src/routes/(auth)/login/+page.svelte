@@ -21,18 +21,18 @@
 			<h1 class="text-center text-2xl font-semibold">Sign in to Locus Vision</h1>
 
 			<form class="space-y-4">
-				<div class="space-y-1.5">
+				<div>
 					<label for="email" class="text-sm font-semibold">Email</label>
 					<Input
 						id="email"
 						type="email"
 						placeholder="Enter Your Email"
 						bind:value={email}
-						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0"
+						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
 					/>
 				</div>
 
-				<div class="space-y-1.5">
+				<div>
 					<label for="password" class="text-sm font-semibold">Password</label>
 					<div class="relative">
 						<Input
@@ -40,7 +40,7 @@
 							type={showPassword ? 'text' : 'password'}
 							placeholder="Enter Your Password"
 							bind:value={password}
-							class="rounded-none border-0 border-b border-border bg-transparent px-0 pr-8 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0"
+							class="rounded-none border-0 border-b border-border bg-transparent px-0 pr-8 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
 						/>
 						<button
 							type="button"
