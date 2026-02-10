@@ -5,7 +5,7 @@
 <div class="flex flex-1 flex-col gap-4 p-4">
 	<PageTitle2 />
 	<div
-		class="flex min-h-[100vh] flex-1 flex-col items-center justify-center gap-4 rounded-xl bg-muted/50 md:min-h-min"
+		class="flex min-h-[100vh] flex-1 flex-col items-center justify-center gap-4 rounded-xl bg-muted/50"
 	>
 		<p>Settings content goes here.</p>
 	</div>
