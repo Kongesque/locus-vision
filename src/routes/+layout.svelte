@@ -9,7 +9,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar />
-	<main class="w-full flex-1 overflow-hidden">
+	<main class="flex h-svh w-full flex-1 flex-col overflow-y-auto">
 		<Header />
 		{@render children?.()}
 	</main>
