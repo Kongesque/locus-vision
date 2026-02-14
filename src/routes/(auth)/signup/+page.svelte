@@ -1,13 +1,14 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Eye, EyeOff } from '@lucide/svelte';
 	import Echo from '$lib/components/svg/echo.svelte';
 
-	let name = $state('');
-	let email = $state('');
-	let password = $state('');
+	let { form } = $props();
+
 	let showPassword = $state(false);
+	let loading = $state(false);
 </script>
 
 <svelte:head>
@@ -25,14 +26,31 @@
 		<div class="w-full max-w-md space-y-4">
 			<h1 class="text-center text-2xl font-semibold">Sign up to Locus Vision</h1>
 
-			<form class="space-y-4">
+			{#if form?.error}
+				<p class="rounded-lg bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">
+					{form.error}
+				</p>
+			{/if}
+
+			<form
+				method="POST"
+				class="space-y-4"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						loading = false;
+						await update();
+					};
+				}}
+			>
 				<div>
 					<label for="name" class="text-sm font-semibold">Name</label>
 					<Input
 						id="name"
+						name="name"
 						type="text"
 						placeholder="Enter Your Full Name"
-						bind:value={name}
+						value={form?.name ?? ''}
 						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
 					/>
 				</div>
@@ -41,9 +59,10 @@
 					<label for="email" class="text-sm font-semibold">Email</label>
 					<Input
 						id="email"
+						name="email"
 						type="email"
 						placeholder="Enter Your Email"
-						bind:value={email}
+						value={form?.email ?? ''}
 						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
 					/>
 				</div>
@@ -53,9 +72,9 @@
 					<div class="relative">
 						<Input
 							id="password"
+							name="password"
 							type={showPassword ? 'text' : 'password'}
 							placeholder="Enter Your Password"
-							bind:value={password}
 							class="rounded-none border-0 border-b border-border bg-transparent px-0 pr-8 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
 						/>
 						<button
@@ -74,9 +93,10 @@
 
 				<Button
 					type="submit"
+					disabled={loading}
 					class="w-full rounded-full bg-muted text-foreground shadow-none hover:bg-muted/80"
 				>
-					Create Account
+					{loading ? 'Creating Account...' : 'Create Account'}
 				</Button>
 			</form>
 
