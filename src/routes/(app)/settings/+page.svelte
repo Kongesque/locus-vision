@@ -1,14 +1,381 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import PageTitle2 from '$lib/components/page-title-2.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+
+	let { data, form } = $props();
+	let loading = $state('');
+
+	// Delete user confirmation
+	let deleteUserId = $state<number | null>(null);
+	let deleteUserName = $state('');
 </script>
 
 <svelte:head>
 	<title>Settings · Locus</title>
 </svelte:head>
 
-<div class="flex flex-1 flex-col gap-4 p-4">
+<div class="flex max-w-4xl flex-1 flex-col gap-6 p-4 md:p-6">
 	<PageTitle2 />
-	<div class="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl bg-muted/50">
-		<p>Settings content goes here.</p>
-	</div>
+
+	<!-- ═══════════════════════════════════════════════════ -->
+	<!-- ACCOUNT -->
+	<!-- ═══════════════════════════════════════════════════ -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-lg">Account</Card.Title>
+			<Card.Description>Manage your profile information</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<form
+				method="POST"
+				action="?/updateAccount"
+				use:enhance={() => {
+					loading = 'account';
+					return async ({ update }) => {
+						loading = '';
+						await update();
+					};
+				}}
+				class="space-y-4"
+			>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="space-y-2">
+						<Label for="name">Name</Label>
+						<Input id="name" name="name" value={data.user?.name ?? ''} placeholder="Your name" />
+					</div>
+					<div class="space-y-2">
+						<Label for="email">Email</Label>
+						<Input
+							id="email"
+							name="email"
+							type="email"
+							value={data.user?.email ?? ''}
+							placeholder="you@example.com"
+						/>
+					</div>
+				</div>
+
+				{#if form?.accountError}
+					<p class="text-sm text-destructive">{form.accountError}</p>
+				{/if}
+				{#if form?.accountSuccess}
+					<p class="text-sm text-green-600">Account updated successfully</p>
+				{/if}
+
+				<div class="flex justify-end">
+					<Button type="submit" disabled={loading === 'account'}>
+						{loading === 'account' ? 'Saving…' : 'Save Changes'}
+					</Button>
+				</div>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- ═══════════════════════════════════════════════════ -->
+	<!-- SECURITY -->
+	<!-- ═══════════════════════════════════════════════════ -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-lg">Security</Card.Title>
+			<Card.Description>Change your password. You'll be logged out after changing.</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			<form
+				method="POST"
+				action="?/changePassword"
+				use:enhance={() => {
+					loading = 'password';
+					return async ({ update }) => {
+						loading = '';
+						await update();
+					};
+				}}
+				class="space-y-4"
+			>
+				<div class="space-y-2">
+					<Label for="current_password">Current Password</Label>
+					<Input
+						id="current_password"
+						name="current_password"
+						type="password"
+						placeholder="Enter current password"
+						autocomplete="current-password"
+					/>
+				</div>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="space-y-2">
+						<Label for="new_password">New Password</Label>
+						<Input
+							id="new_password"
+							name="new_password"
+							type="password"
+							placeholder="Minimum 8 characters"
+							autocomplete="new-password"
+						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="confirm_password">Confirm New Password</Label>
+						<Input
+							id="confirm_password"
+							name="confirm_password"
+							type="password"
+							placeholder="Repeat new password"
+							autocomplete="new-password"
+						/>
+					</div>
+				</div>
+
+				{#if form?.passwordError}
+					<p class="text-sm text-destructive">{form.passwordError}</p>
+				{/if}
+
+				<div class="flex justify-end">
+					<Button type="submit" variant="destructive" disabled={loading === 'password'}>
+						{loading === 'password' ? 'Changing…' : 'Change Password'}
+					</Button>
+				</div>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- ═══════════════════════════════════════════════════ -->
+	<!-- SESSIONS -->
+	<!-- ═══════════════════════════════════════════════════ -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-lg">Sessions</Card.Title>
+			<Card.Description>
+				You have {data.sessions?.length ?? 0} active session{(data.sessions?.length ?? 0) !== 1
+					? 's'
+					: ''}
+			</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			{#if data.sessions && data.sessions.length > 0}
+				<div class="mb-4 space-y-2">
+					{#each data.sessions as session}
+						<div class="flex items-center justify-between rounded-md border px-4 py-2 text-sm">
+							<span class="text-muted-foreground">
+								Created {new Date(session.created_at + 'Z').toLocaleDateString()}
+							</span>
+							<span class="text-muted-foreground">
+								Expires {new Date(session.expires_at + 'Z').toLocaleDateString()}
+							</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<form method="POST" action="?/revokeSessions" use:enhance>
+				<Button type="submit" variant="outline" class="w-full">Sign Out All Sessions</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- ═══════════════════════════════════════════════════ -->
+	<!-- ADMIN SECTION -->
+	<!-- ═══════════════════════════════════════════════════ -->
+	{#if data.user?.role === 'admin'}
+		<Separator class="my-2" />
+
+		<span class="text-lg font-semibold tracking-tight text-muted-foreground">Administration</span>
+
+		<!-- APP SETTINGS -->
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-lg">App Settings</Card.Title>
+				<Card.Description>Configure application-level settings</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<form
+					method="POST"
+					action="?/toggleSignup"
+					use:enhance={() => {
+						loading = 'signup';
+						return async ({ update }) => {
+							loading = '';
+							await update();
+						};
+					}}
+				>
+					<div class="flex items-center justify-between rounded-lg border p-4">
+						<div class="space-y-0.5">
+							<Label for="allow_signup_toggle" class="text-sm font-medium">
+								Allow Public Signup
+							</Label>
+							<p class="text-sm text-muted-foreground">
+								When enabled, anyone can create an account
+							</p>
+						</div>
+						<input
+							type="hidden"
+							name="allow_signup"
+							value={data.appSettings?.allow_signup ? 'false' : 'true'}
+						/>
+						<Button
+							type="submit"
+							variant="ghost"
+							size="sm"
+							class="h-auto p-0 hover:bg-transparent"
+							disabled={loading === 'signup'}
+						>
+							<Switch
+								checked={data.appSettings?.allow_signup ?? false}
+								id="allow_signup_toggle"
+								aria-label="Toggle public signup"
+							/>
+						</Button>
+					</div>
+				</form>
+
+				{#if form?.settingsSuccess}
+					<p class="mt-2 text-sm text-green-600">Settings updated</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<!-- USER MANAGEMENT -->
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-lg">User Management</Card.Title>
+				<Card.Description>
+					{data.users?.length ?? 0} registered user{(data.users?.length ?? 0) !== 1 ? 's' : ''}
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				{#if form?.adminError}
+					<p class="mb-4 text-sm text-destructive">{form.adminError}</p>
+				{/if}
+				{#if form?.adminSuccess}
+					<p class="mb-4 text-sm text-green-600">Updated successfully</p>
+				{/if}
+
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>User</Table.Head>
+							<Table.Head>Role</Table.Head>
+							<Table.Head>Status</Table.Head>
+							<Table.Head class="text-right">Actions</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each data.users ?? [] as user}
+							<Table.Row>
+								<Table.Cell>
+									<div>
+										<p class="font-medium">{user.name}</p>
+										<p class="text-sm text-muted-foreground">{user.email}</p>
+									</div>
+								</Table.Cell>
+								<Table.Cell>
+									{#if user.id === data.user?.id}
+										<Badge variant="default">{user.role}</Badge>
+									{:else}
+										<form method="POST" action="?/updateRole" use:enhance class="inline">
+											<input type="hidden" name="user_id" value={user.id} />
+											<input
+												type="hidden"
+												name="role"
+												value={user.role === 'admin' ? 'viewer' : 'admin'}
+											/>
+											<Button
+												type="submit"
+												variant="ghost"
+												size="sm"
+												class="h-auto p-0 hover:bg-transparent"
+											>
+												<Badge
+													variant={user.role === 'admin' ? 'default' : 'secondary'}
+													class="cursor-pointer"
+												>
+													{user.role}
+												</Badge>
+											</Button>
+										</form>
+									{/if}
+								</Table.Cell>
+								<Table.Cell>
+									{#if user.id === data.user?.id}
+										<Badge variant="outline" class="border-green-600 text-green-600">Active</Badge>
+									{:else}
+										<form method="POST" action="?/toggleUserActive" use:enhance class="inline">
+											<input type="hidden" name="user_id" value={user.id} />
+											<Button
+												type="submit"
+												variant="ghost"
+												size="sm"
+												class="h-auto p-0 hover:bg-transparent"
+											>
+												<Badge
+													variant="outline"
+													class={user.is_active
+														? 'cursor-pointer border-green-600 text-green-600'
+														: 'cursor-pointer border-red-500 text-red-500'}
+												>
+													{user.is_active ? 'Active' : 'Inactive'}
+												</Badge>
+											</Button>
+										</form>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="text-right">
+									{#if user.id !== data.user?.id}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="text-destructive hover:text-destructive"
+											onclick={() => {
+												deleteUserId = user.id;
+												deleteUserName = user.name;
+											}}
+										>
+											Delete
+										</Button>
+									{:else}
+										<span class="text-sm text-muted-foreground">You</span>
+									{/if}
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 </div>
+
+<!-- Delete User Confirmation Dialog -->
+<AlertDialog.Root
+	open={deleteUserId !== null}
+	onOpenChange={(open) => {
+		if (!open) deleteUserId = null;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete User</AlertDialog.Title>
+			<AlertDialog.Description>
+				Are you sure you want to delete <strong>{deleteUserName}</strong>? This action cannot be
+				undone. All their data and sessions will be permanently removed.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (deleteUserId = null)}>Cancel</AlertDialog.Cancel>
+			<form method="POST" action="?/deleteUser" use:enhance class="inline">
+				<input type="hidden" name="user_id" value={deleteUserId} />
+				<Button type="submit" variant="destructive">Delete User</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

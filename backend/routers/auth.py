@@ -13,7 +13,7 @@ from auth import (
     decode_access_token,
     decode_refresh_token,
 )
-from database import get_db, has_users
+from database import get_db, has_users, get_app_setting
 from models import (
     UserCreate,
     UserLogin,
@@ -93,6 +93,13 @@ async def setup_status():
     return SetupStatusResponse(needs_setup=not users_exist)
 
 
+@router.get("/signup-status")
+async def signup_status():
+    """Check if public signup is allowed (public endpoint)."""
+    allow_signup = await get_app_setting("allow_signup", "false")
+    return {"allow_signup": allow_signup == "true"}
+
+
 @router.post("/register", response_model=UserResponse, status_code=201)
 async def register(
     data: UserCreate,
@@ -101,34 +108,36 @@ async def register(
     """
     Register a new user.
     - If no users exist: creates the first admin (no auth required).
+    - If signup is enabled: public registration as viewer.
     - Otherwise: requires an authenticated admin.
     """
     users_exist = await has_users()
 
     current_user = None
     if users_exist:
-        # After first user exists, require admin auth
-        if not credentials:
-            raise HTTPException(status_code=403, detail="Admin authentication required")
-        payload = decode_access_token(credentials.credentials)
-        if not payload:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
-        user_id = int(payload["sub"])
-        db = await get_db()
-        try:
-            cursor = await db.execute(
-                "SELECT id, email, name, role, is_active, created_at FROM users WHERE id = ?",
-                (user_id,),
-            )
-            user_row = await cursor.fetchone()
-            if not user_row or not user_row[4]:
-                raise HTTPException(status_code=401, detail="User not found or inactive")
-            current_user = {"id": user_row[0], "role": user_row[3]}
-        finally:
-            await db.close()
+        allow_signup = await get_app_setting("allow_signup", "false")
 
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Only admins can create users")
+        if credentials:
+            # Admin creating a user
+            payload = decode_access_token(credentials.credentials)
+            if not payload:
+                raise HTTPException(status_code=401, detail="Invalid or expired token")
+            user_id = int(payload["sub"])
+            db = await get_db()
+            try:
+                cursor = await db.execute(
+                    "SELECT id, email, name, role, is_active, created_at FROM users WHERE id = ?",
+                    (user_id,),
+                )
+                user_row = await cursor.fetchone()
+                if not user_row or not user_row[4]:
+                    raise HTTPException(status_code=401, detail="User not found or inactive")
+                current_user = {"id": user_row[0], "role": user_row[3]}
+            finally:
+                await db.close()
+        elif allow_signup != "true":
+            # No auth and signup disabled
+            raise HTTPException(status_code=403, detail="Public registration is disabled")
 
     role = "admin" if not users_exist else "viewer"
 
@@ -285,41 +294,3 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current authenticated user info."""
     return UserResponse(**current_user)
 
-
-@router.put("/password", response_model=MessageResponse)
-async def change_password(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-):
-    """Change the current user's password."""
-    body = await request.json()
-    current_password = body.get("current_password")
-    new_password = body.get("new_password")
-
-    if not current_password or not new_password:
-        raise HTTPException(status_code=400, detail="Both current and new password required")
-
-    if len(new_password) < 8:
-        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
-
-    db = await get_db()
-    try:
-        cursor = await db.execute(
-            "SELECT password_hash FROM users WHERE id = ?", (current_user["id"],)
-        )
-        row = await cursor.fetchone()
-        if not row or not verify_password(current_password, row[0]):
-            raise HTTPException(status_code=401, detail="Current password is incorrect")
-
-        new_hash = hash_password(new_password)
-        await db.execute(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
-            (new_hash, current_user["id"]),
-        )
-        # Invalidate all sessions
-        await db.execute("DELETE FROM sessions WHERE user_id = ?", (current_user["id"],))
-        await db.commit()
-
-        return MessageResponse(message="Password changed successfully")
-    finally:
-        await db.close()

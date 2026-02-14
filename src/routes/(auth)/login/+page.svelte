@@ -5,7 +5,7 @@
 	import { Eye, EyeOff } from '@lucide/svelte';
 	import Echo from '$lib/components/svg/echo.svelte';
 
-	let { form } = $props();
+	let { form, data } = $props();
 
 	let showPassword = $state(false);
 	let loading = $state(false);
@@ -88,12 +88,14 @@
 				</Button>
 			</form>
 
-			<p class="text-center text-sm">
-				Don't have an account? <a
-					href="/signup"
-					class="font-medium text-foreground underline hover:text-foreground/80">Sign up</a
-				>
-			</p>
+			{#if data.allowSignup}
+				<p class="text-center text-sm">
+					Don't have an account? <a
+						href="/signup"
+						class="font-medium text-foreground underline hover:text-foreground/80">Sign up</a
+					>
+				</p>
+			{/if}
 		</div>
 	</div>
 </div>

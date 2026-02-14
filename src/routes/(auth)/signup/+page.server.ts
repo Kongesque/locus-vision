@@ -7,6 +7,20 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (locals.user) {
         throw redirect(303, '/');
     }
+
+    // Check if public signup is allowed
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/signup-status`);
+        if (res.ok) {
+            const { allow_signup } = await res.json();
+            if (!allow_signup) {
+                throw redirect(303, '/login');
+            }
+        }
+    } catch (e) {
+        if (e && typeof e === 'object' && 'status' in e) throw e;
+        // If we can't check, allow access (fail open for signup page)
+    }
 };
 
 export const actions: Actions = {

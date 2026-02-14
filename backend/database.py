@@ -41,8 +41,16 @@ async def init_db():
                 created_at          TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+            -- Default app settings
+            INSERT OR IGNORE INTO app_settings (key, value) VALUES ('allow_signup', 'false');
         """)
         await db.commit()
     finally:
@@ -58,3 +66,30 @@ async def has_users() -> bool:
         return row[0] > 0  # type: ignore
     finally:
         await db.close()
+
+
+async def get_app_setting(key: str, default: str = "") -> str:
+    """Get an app setting by key."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT value FROM app_settings WHERE key = ?", (key,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else default  # type: ignore
+    finally:
+        await db.close()
+
+
+async def set_app_setting(key: str, value: str):
+    """Set an app setting (upsert)."""
+    db = await get_db()
+    try:
+        await db.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)",
+            (key, value),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+

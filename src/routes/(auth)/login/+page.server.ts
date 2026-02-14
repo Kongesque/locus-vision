@@ -8,6 +8,20 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (locals.user) {
         throw redirect(303, '/');
     }
+
+    // Check if public signup is allowed
+    let allowSignup = false;
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/signup-status`);
+        if (res.ok) {
+            const data = await res.json();
+            allowSignup = data.allow_signup;
+        }
+    } catch {
+        // If backend is unavailable, default to hidden
+    }
+
+    return { allowSignup };
 };
 
 export const actions: Actions = {
