@@ -1,4 +1,5 @@
 <script lang="ts">
+	import historyData from '../../../../data/video_history.json';
 	import PageTitle2 from '$lib/components/page-title-2.svelte';
 	import UploadArea from '$lib/components/video-analytics/upload-area.svelte';
 	import SearchInput from '$lib/components/video-analytics/search-input.svelte';
@@ -7,31 +8,7 @@
 	let searchQuery = $state('');
 	let loading = $state(false);
 
-	// Mock data for history
-	// TODO: Fetch this from an API or store
-	let history = [
-		{
-			id: '1',
-			name: 'Traffic Analysis 01',
-			duration: '12:34',
-			createdAt: '2 hours ago',
-			format: 'MP4'
-		},
-		{
-			id: '2',
-			name: 'Store Entrance Stream',
-			duration: '45:00',
-			createdAt: '5 hours ago',
-			format: 'MKV'
-		},
-		{
-			id: '3',
-			name: 'Warehouse Security Feed',
-			duration: '01:23:45',
-			createdAt: '1 day ago',
-			format: 'AVI'
-		}
-	];
+	let history = historyData;
 
 	let filteredHistory = $derived(
 		history.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))

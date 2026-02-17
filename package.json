@@ -4,7 +4,9 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\" --kill-others --prefix-colors \"bgBlue.bold,bgMagenta.bold\"",
+		"dev:frontend": "vite dev",
+		"dev:backend": "cd backend && source .venv/bin/activate && uvicorn main:app --reload",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -29,6 +31,7 @@
 		"@types/node": "^24",
 		"bits-ui": "^2.15.5",
 		"clsx": "^2.1.1",
+		"concurrently": "^9.2.1",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
