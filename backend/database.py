@@ -51,6 +51,17 @@ async def init_db():
 
             -- Default app settings
             INSERT OR IGNORE INTO app_settings (key, value) VALUES ('allow_signup', 'false');
+
+            CREATE TABLE IF NOT EXISTS video_tasks (
+                id          TEXT    PRIMARY KEY,
+                filename    TEXT    NOT NULL,
+                status      TEXT    NOT NULL DEFAULT 'pending',
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+                completed_at TEXT   NULL,
+                duration    TEXT    NULL,
+                format      TEXT    NULL,
+                model_name  TEXT    NULL
+            );
         """)
         await db.commit()
     finally:

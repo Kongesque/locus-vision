@@ -126,8 +126,20 @@ class AppSettingsResponse(BaseModel):
     allow_signup: bool
 
 
+
 class SessionResponse(BaseModel):
     id: int
     created_at: str
     expires_at: str
+
+
+class VideoTask(BaseModel):
+    id: str
+    filename: str
+    status: str
+    created_at: str
+    completed_at: str | None = None
+    duration: str | None = None
+    format: str | None = None
+    model_name: str | None = None
 
