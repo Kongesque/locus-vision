@@ -7,20 +7,16 @@
 	import ToolsPanel, { type YoloModel } from '$lib/components/create/tools-panel.svelte';
 	import type { Point, Zone } from '$lib/components/create/drawing-canvas.svelte';
 
+	import { videoStore } from '$lib/stores/video.svelte';
+
 	// Get taskId from URL params
 	const taskId = $derived($page.params.taskId);
 
 	// Initialize Video Store (Context)
-	// We might want to load the video URL based on taskId here in a real app
-	// For now, we'll initialize the store.
+	// We load the video URL from the global store if available (from upload page)
 	setVideoContext({
-		// In a real app, you might fetch the video URL for this taskId
-		// For demo, we might start empty or user sets it.
-		// If the previous page passed state, we could use it.
-		// Assuming the user will upload or select a video,
-		// OR if this page implies the video IS the task's video.
-		// The original code used `useVideo()` from context but didn't show where it was provided.
-		// I'll assume we need to provide it here.
+		videoUrl: videoStore.videoUrl || null,
+		videoType: videoStore.videoType === 'file' ? 'file' : null
 	});
 
 	// State
