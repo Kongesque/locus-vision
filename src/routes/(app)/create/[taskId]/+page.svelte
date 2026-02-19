@@ -97,11 +97,10 @@
 			}
 
 			// Redirect immediately to dashboard or task view
-			goto('/video-analytics');
+			await goto('/video-analytics');
 		} catch (error) {
 			console.error('Error processing video:', error);
 			alert('Failed to start processing');
-		} finally {
 			isProcessing = false;
 		}
 	}
