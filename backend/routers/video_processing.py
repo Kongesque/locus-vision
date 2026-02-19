@@ -15,6 +15,9 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+CACHE_DIR = "static/files/output"
+os.makedirs(CACHE_DIR, exist_ok=True)
+
 # COCO Class mapping (simplified for demo)
 # In reality, you'd want a robust mapping or pass class IDs directly from frontend
 COCO_CLASSES = {
