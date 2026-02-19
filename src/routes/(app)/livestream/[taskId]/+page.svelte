@@ -9,6 +9,7 @@
 			<div class="relative overflow-hidden rounded-lg border bg-black shadow-sm">
 				<AspectRatio ratio={16 / 9} class="max-h-[70vh]">
 					<!-- TODO: Add video source from /create/[taskId] -->
+					<!-- svelte-ignore a11y_media_has_caption -->
 					<video src="" class="h-full w-full object-contain" controls loop></video>
 				</AspectRatio>
 			</div>
