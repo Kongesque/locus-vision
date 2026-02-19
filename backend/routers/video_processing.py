@@ -15,32 +15,62 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-# Global model instance to avoid reloading
-# In a real production app, consider using a dependency injection or a singleton pattern properly
-try:
-    model = YOLO('yolov8n.pt')
-except Exception as e:
-    print(f"Failed to load YOLO model: {e}")
-    model = None
+# COCO Class mapping (simplified for demo)
+# In reality, you'd want a robust mapping or pass class IDs directly from frontend
+COCO_CLASSES = {
+    "person": 0, "bicycle": 1, "car": 2, "motorcycle": 3, "airplane": 4, "bus": 5, "train": 6, "truck": 7, "boat": 8,
+    "traffic light": 9, "fire hydrant": 10, "stop sign": 11, "parking meter": 12, "bench": 13, "bird": 14, "cat": 15,
+    "dog": 16, "horse": 17, "sheep": 18, "cow": 19, "elephant": 20, "bear": 21, "zebra": 22, "giraffe": 23,
+    "backpack": 24, "umbrella": 25, "handbag": 26, "tie": 27, "suitcase": 28, "frisbee": 29, "skis": 30,
+    "snowboard": 31, "sports ball": 32, "kite": 33, "baseball bat": 34, "baseball glove": 35, "skateboard": 36,
+    "surfboard": 37, "tennis racket": 38, "bottle": 39, "wine glass": 40, "cup": 41, "fork": 42, "knife": 43,
+    "spoon": 44, "bowl": 45, "banana": 46, "apple": 47, "sandwich": 48, "orange": 49, "broccoli": 50, "carrot": 51,
+    "hot dog": 52, "pizza": 53, "donut": 54, "cake": 55, "chair": 56, "couch": 57, "potted plant": 58, "bed": 59,
+    "dining table": 60, "toilet": 61, "tv": 62, "laptop": 63, "mouse": 64, "remote": 65, "keyboard": 66, "cell phone": 67,
+    "microwave": 68, "oven": 69, "toaster": 70, "sink": 71, "refrigerator": 72, "book": 73, "clock": 74, "vase": 75,
+    "scissors": 76, "teddy bear": 77, "hair drier": 78, "toothbrush": 79
+}
 
-CACHE_DIR = "static/files/output"
-os.makedirs(CACHE_DIR, exist_ok=True)
+def get_class_ids(class_names: List[str]) -> List[int]:
+    ids = []
+    for name in class_names:
+        if name in COCO_CLASSES:
+            ids.append(COCO_CLASSES[name])
+    return ids
+
+# Cache models to avoid reloading
+loaded_models = {}
+
+def get_model(model_name: str):
+    if model_name not in loaded_models:
+        print(f"Loading model: {model_name}")
+        try:
+             # Map frontend model names to ultralytics paths if needed
+             # strict matching for now: yolo11n -> yolo11n.pt (assuming available or auto-download)
+             # Fallback to yolov8n if 11 not explicitly available in environment or handling
+             if "yolo11" in model_name: 
+                 # Ultralytics 8.3+ supports yolo11. 
+                 pass 
+             loaded_models[model_name] = YOLO(f"{model_name}.pt")
+        except Exception as e:
+            print(f"Error loading {model_name}, falling back to yolov8n. Error: {e}")
+            loaded_models[model_name] = YOLO("yolov8n.pt")
+    return loaded_models[model_name]
 
 def process_video_task(
     input_path: str,
     output_path: str,
     zones: List[Dict],
     task_id: str,
+    model_name: str = "yolov8n",
+    full_frame_classes: List[str] = [],
     target_fps: int = 12
 ):
     """
     Background task to process video.
-    Optimized version of the user provided script.
     """
-    if model is None:
-        print("Model not loaded, skipping processing")
-        return
-
+    model = get_model(model_name)
+    
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
         print(f"Error opening video file {input_path}")
@@ -64,16 +94,18 @@ def process_video_task(
     track_history = defaultdict(lambda: [])
     crossed_objects = {} # track_id -> bool (True if counted)
     
-    # Prepare zones (convert to numpy arrays for polylinetest)
-    # Zone format from frontend: { points: [{x, y}, ...], ... }
+    # Prepare zones
     parsed_zones = []
     for zone in zones:
         pts = np.array([[p['x'], p['y']] for p in zone['points']], np.int32)
         parsed_zones.append({
             "poly": pts,
             "color": (0, 255, 0), # Default color
-            "id": zone.get("id")
+            "id": zone.get("id"),
+            "classes": get_class_ids(zone.get("classes", []))
         })
+        
+    full_frame_class_ids = get_class_ids(full_frame_classes)
 
     frame_count = 0
     start_time = time.time()
@@ -88,20 +120,30 @@ def process_video_task(
             continue
 
         # YOLO Inference
-        # Persist=True is important for tracking
-        results = model.track(frame, persist=True, tracker="bytetrack.yaml", verbose=False)
+        # Filter classes if provided (and if we want to filter globally for tracking efficiency)
+        # Note: If zones have different classes, we generally need to track ALL relevant classes globally first.
+        # We collect all unique class IDs required across all zones + full frame
+        required_classes = set(full_frame_class_ids)
+        for z in parsed_zones:
+            if not z["classes"]: # Empty means ALL
+               required_classes = None # None means track everything
+               break
+            required_classes.update(z["classes"])
+            
+        classes_arg = list(required_classes) if required_classes is not None else None
+        
+        results = model.track(frame, persist=True, tracker="bytetrack.yaml", verbose=False, classes=classes_arg)
         
         if results and results[0].boxes:
             boxes = results[0].boxes.xywh.cpu().numpy()
             track_ids = results[0].boxes.id
+            class_indices = results[0].boxes.cls.cpu().numpy() # Get detected class indices
             
             if track_ids is not None:
                 track_ids = track_ids.int().cpu().tolist()
                 
-                # Annotate frame
-                # frame = results[0].plot() # Using built-in plot or custom drawing
-                
-                for box, track_id in zip(boxes, track_ids):
+                for box, track_id, cls_idx in zip(boxes, track_ids, class_indices):
+                    cls_idx = int(cls_idx)
                     x, y, w, h = box
                     center = (int(x), int(y))
                     
@@ -111,28 +153,33 @@ def process_video_task(
                         track.pop(0)
 
                     # Check zones
-                    is_inside_any = False
+                    is_inside_target_zone = False
+                    
                     for zone in parsed_zones:
+                        # Check if this object's class matches the zone's filter
+                        # If zone.classes is empty, it matches ALL
+                        if zone["classes"] and cls_idx not in zone["classes"]:
+                            continue
+                            
                         # pointPolygonTest returns +1 (inside), -1 (outside), 0 (on edge)
                         dist = cv2.pointPolygonTest(zone["poly"], center, False)
                         
                         if dist >= 0:
-                            is_inside_any = True
+                            is_inside_target_zone = True
                             if track_id not in crossed_objects:
                                 crossed_objects[track_id] = True
                     
+                    # Also check if it matches full frame filter (visualize differently?)
+                    # For now just simple coloring logic
+                    is_relevant = is_inside_target_zone or (not parsed_zones and (not full_frame_class_ids or cls_idx in full_frame_class_ids))
+
                     # Custom Drawing
-                    color = (244, 133, 66) if is_inside_any else (54, 67, 234) # Blue vs Red
-                    if is_inside_any:
+                    if is_inside_target_zone:
                          cv2.circle(frame, center, 9, (244, 133, 66), -1) 
                     elif track_id in crossed_objects:
                          cv2.circle(frame, center, 9, (83, 168, 51), -1) # Green (Already counted)
                     else:
                          cv2.circle(frame, center, 9, (54, 67, 234), -1)
-
-                    # Draw trails
-                    # points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
-                    # cv2.polylines(frame, [points], isClosed=False, color=(230, 230, 230), thickness=2)
 
         # Draw Zones
         for zone in parsed_zones:
@@ -159,15 +206,18 @@ async def process_video(
     task_id: str,
     background_tasks: BackgroundTasks,
     video: UploadFile = File(...),
-    zones: str = Form(...) # JSON string
+    zones: str = Form(...), # JSON string
+    model: str = Form("yolo11n"),
+    classes: str = Form("[]") # JSON string of list of class names (for full frame)
 ):
     """
     Upload a video and start processing in the background.
     """
     try:
         zones_data = json.loads(zones)
+        classes_data = json.loads(classes)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid zones JSON")
+        raise HTTPException(status_code=400, detail="Invalid zones or classes JSON")
 
     input_path = os.path.join(CACHE_DIR, f"input_{task_id}.mp4")
     output_path = os.path.join(CACHE_DIR, f"output_{task_id}.mp4")
@@ -183,7 +233,9 @@ async def process_video(
         input_path,
         output_path,
         zones_data,
-        task_id
+        task_id,
+        model,
+        classes_data
     )
     
     return JSONResponse({

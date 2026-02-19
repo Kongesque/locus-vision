@@ -84,7 +84,8 @@
 			const formData = new FormData();
 			formData.append('video', file);
 			formData.append('zones', JSON.stringify(zones));
-			// You can also append 'model' or 'classes' if the backend supports it
+			formData.append('model', selectedModel);
+			formData.append('classes', JSON.stringify(fullFrameClasses));
 
 			const uploadRes = await fetch(`http://localhost:8000/api/video/${taskId}/process`, {
 				method: 'POST',
