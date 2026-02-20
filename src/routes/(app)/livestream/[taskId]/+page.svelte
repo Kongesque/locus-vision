@@ -149,32 +149,31 @@
 		ws.onopen = () => {
 			console.log('Analytics WebSocket connected');
 
-			// Only send frames if this is a webcam camera
-			if (cameraType === 'webcam') {
-				videoEl = node.parentElement?.querySelector('video') ?? null;
-				if (!videoEl) {
-					console.warn('No <video> element found for frame capture');
-					return;
-				}
-
-				captureInterval = setInterval(() => {
-					if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
-
-					captureCanvas.width = videoEl.videoWidth || 640;
-					captureCanvas.height = videoEl.videoHeight || 480;
-					captureCtx?.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
-
-					captureCanvas.toBlob(
-						(blob) => {
-							if (blob && ws.readyState === WebSocket.OPEN) {
-								blob.arrayBuffer().then((buf) => ws.send(buf));
-							}
-						},
-						'image/jpeg',
-						0.6
-					);
-				}, 125); // ~8 FPS
+			videoEl = node.parentElement?.querySelector('video') ?? null;
+			if (!videoEl) {
+				console.warn('No <video> element found for frame capture');
 			}
+
+			captureInterval = setInterval(() => {
+				// Only send frames if this is currently a webcam camera
+				if (cameraType !== 'webcam') return;
+
+				if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
+
+				captureCanvas.width = videoEl.videoWidth || 640;
+				captureCanvas.height = videoEl.videoHeight || 480;
+				captureCtx?.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+
+				captureCanvas.toBlob(
+					(blob) => {
+						if (blob && ws.readyState === WebSocket.OPEN) {
+							blob.arrayBuffer().then((buf) => ws.send(buf));
+						}
+					},
+					'image/jpeg',
+					0.6
+				);
+			}, 125); // ~8 FPS
 		};
 
 		ws.onmessage = (event) => {

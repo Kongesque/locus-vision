@@ -2,7 +2,7 @@
 
 Locus is an open-source, high-performance video analytics engine designed specifically for the Raspberry Pi 5 (8GB). Locus parses reality in real-time—turning video feeds into structured data, searchable events, and actionable insights.
 
-It is built to be local-first, privacy-centric, and highly optimized for edge deployment. Lightweight, fast, minimal resource usage
+It is built to be local-first, privacy-centric, and highly optimized for edge deployment. Lightweight, fast, minimal resource usage.
 
 ## Tech Stack
 
@@ -10,9 +10,10 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 |----------|------------|
 | Frontend | SvelteKit 2, TypeScript |
 | Styling | Tailwind CSS 4 |
-| UI Components | shadcn-svelte |
+| UI Components | shadcn-svelte, mode-watcher (Themes) |
 | Backend | FastAPI, Python |
 | Database | SQLite (async via aiosqlite) |
+| AI / Vision | YOLO (Object Detection, Tracking & Counting) |
 | Auth | JWT (access + refresh tokens), Argon2id |
 | Build | Vite 7 |
 | Testing | Vitest |
@@ -20,8 +21,9 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 
 ## Features
 
-- **Live Stream** — real-time video feed monitoring
-- **Video Analytics** — structured data from video feeds
+- **Live Stream** — real-time RTSP camera feeds with YOLO object detection and HLS streaming
+- **Video Analytics** — process videos for object detection, tracking, and counting with customizable zones and class filtering
+- **Theme Switching** — built-in support for auto, dark, and light modes
 - **Authentication** — JWT-based auth with HttpOnly cookies, auto-refresh
 - **Role-Based Access** — admin and viewer roles
 - **User Management** — admin panel for user CRUD, role assignment, activation
@@ -32,23 +34,25 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 ## Quick Start
 
 ```sh
-# Frontend
+# Install frontend dependencies
 pnpm install
-pnpm dev
 
-# Backend
+# Setup backend environment
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+cd ..
+
+# Start fullstack dev server (SvelteKit + FastAPI)
+pnpm dev
 ```
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start dev server |
+| `pnpm dev` | Start fullstack dev server |
 | `pnpm build` | Production build |
 | `pnpm preview` | Preview build |
 | `pnpm test` | Run tests |

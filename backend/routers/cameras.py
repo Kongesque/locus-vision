@@ -428,7 +428,9 @@ async def websocket_endpoint(websocket: WebSocket, camera_id: str):
                 await websocket.send_json(result)
             else:
                 # RTSP: the background thread pushes messages; we just keep alive
-                _msg = await websocket.receive_text()
+                _msg = await websocket.receive()
+                if _msg.get("type") == "websocket.disconnect":
+                    break
     except WebSocketDisconnect:
         pass
     finally:
