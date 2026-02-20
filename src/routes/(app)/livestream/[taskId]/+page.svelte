@@ -67,12 +67,17 @@
 		};
 	}
 
-	// Action for Canvas Overlay (WebSocket)
+	// Action for Canvas Overlay (WebSocket + frame relay)
 	function overlayAction(node: HTMLCanvasElement) {
 		const ws = new WebSocket(`ws://localhost:8000/api/cameras/${taskId}/ws`);
 		let resizeObserver: ResizeObserver | null = null;
+		let captureInterval: ReturnType<typeof setInterval> | null = null;
+		let videoEl: HTMLVideoElement | null = null;
 
-		// Ensure canvas size matches its CSS display size
+		// Hidden offscreen canvas for frame capture
+		const captureCanvas = document.createElement('canvas');
+		const captureCtx = captureCanvas.getContext('2d');
+
 		function resizeCanvas() {
 			if (node.parentElement) {
 				node.width = node.parentElement.clientWidth;
@@ -84,22 +89,48 @@
 		if (node.parentElement) resizeObserver.observe(node.parentElement);
 		resizeCanvas();
 
-		ws.onopen = () => console.log('Analytics WebSocket connected');
-
 		let videoRes = { w: 1, h: 1 };
+
+		ws.onopen = () => {
+			console.log('Analytics WebSocket connected');
+
+			// Find the sibling <video> element
+			videoEl = node.parentElement?.querySelector('video') ?? null;
+			if (!videoEl) {
+				console.warn('No <video> element found for frame capture');
+				return;
+			}
+
+			// Start sending frames at ~8 FPS
+			captureInterval = setInterval(() => {
+				if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
+
+				captureCanvas.width = videoEl.videoWidth || 640;
+				captureCanvas.height = videoEl.videoHeight || 480;
+				captureCtx?.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+
+				captureCanvas.toBlob(
+					(blob) => {
+						if (blob && ws.readyState === WebSocket.OPEN) {
+							blob.arrayBuffer().then((buf) => ws.send(buf));
+						}
+					},
+					'image/jpeg',
+					0.6 // Quality 60% — balance between speed and accuracy
+				);
+			}, 125); // ~8 FPS
+		};
 
 		ws.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
-				if (data.resolution) {
-					videoRes = data.resolution;
-				}
+				if (data.resolution) videoRes = data.resolution;
 				if (data.boxes) {
 					drawOverlay(node, data.boxes, videoRes);
 					trackCount = data.boxes.length;
 				}
 			} catch (e) {
-				console.error('Error parsing websocket message', e);
+				console.error('WS parse error', e);
 			}
 		};
 
@@ -107,6 +138,7 @@
 
 		return {
 			destroy() {
+				if (captureInterval) clearInterval(captureInterval);
 				ws.close();
 				if (resizeObserver) resizeObserver.disconnect();
 			}
@@ -162,12 +194,14 @@
 
 			ctx.strokeRect(scaledX, scaledY, scaledW, scaledH);
 
-			if (box.class !== undefined) {
-				ctx.fillStyle = '#ff0000';
-				ctx.fillRect(scaledX, scaledY - 20, Math.max(scaledW, 50), 20);
+			if (box.label) {
+				ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+				const labelText = `${box.label} #${box.id}`;
+				const textWidth = ctx.measureText(labelText).width + 10;
+				ctx.fillRect(scaledX, scaledY - 22, textWidth, 22);
 				ctx.fillStyle = '#ffffff';
-				ctx.font = '12px Arial';
-				ctx.fillText(`ID: ${box.id} C: ${box.class}`, scaledX + 5, scaledY - 5);
+				ctx.font = 'bold 13px Inter, Arial, sans-serif';
+				ctx.fillText(labelText, scaledX + 5, scaledY - 6);
 			}
 		});
 	}

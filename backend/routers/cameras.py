@@ -158,31 +158,55 @@ async def list_cameras():
 @router.websocket("/{camera_id}/ws")
 async def websocket_endpoint(websocket: WebSocket, camera_id: str):
     """
-    WebSocket endpoint for streaming real-time YOLO analytics metadata to the frontend.
+    WebSocket endpoint for real-time YOLO analytics.
+
+    For webcam cameras: the browser sends JPEG frames (as binary), we run YOLO
+    and send back bounding-box JSON.
+
+    For RTSP cameras: we spawn a background thread that reads the RTSP stream
+    and pushes results into this WebSocket.
     """
     await websocket.accept()
-    
+
     if camera_id not in active_connections:
         active_connections[camera_id] = []
-    
     active_connections[camera_id].append(websocket)
-    
-    # As soon as the first client connects, spawn the heavy YOLO camera worker thread
-    if len(active_connections[camera_id]) == 1:
+
+    # Look up the camera type from DB
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT type, model_name FROM cameras WHERE id = ?", (camera_id,))
+        row = await cursor.fetchone()
+    finally:
+        await db.close()
+
+    cam_type = row["type"] if row else "webcam"
+    model_name = row["model_name"] if row else "yolo11n"
+
+    # For RTSP, spin up the background thread
+    if cam_type == "rtsp":
         from services.camera_worker import camera_manager
-        camera_manager.spawn_worker(camera_id)
+        camera_manager.spawn_rtsp_worker(camera_id)
 
     try:
-        # We just wait for messages from the browser or standard health pings
         while True:
-            data = await websocket.receive_text()
-            # If the client sends updated zones, we could parse them here.
-            # But normally PUT handles that, and the worker reloads from DB.
+            if cam_type == "webcam":
+                # Browser sends binary JPEG frames
+                data = await websocket.receive_bytes()
+                from services.camera_worker import process_frame_bytes
+                result = process_frame_bytes(data, model_name)
+                await websocket.send_json(result)
+            else:
+                # RTSP: the background thread pushes messages; we just keep alive
+                _msg = await websocket.receive_text()
     except WebSocketDisconnect:
-        active_connections[camera_id].remove(websocket)
-        if not active_connections[camera_id]:
-            del active_connections[camera_id]
-            # Kill the worker to save CPU when no one is watching
-            from services.camera_worker import camera_manager
-            camera_manager.kill_worker(camera_id)
+        pass
+    finally:
+        if camera_id in active_connections and websocket in active_connections[camera_id]:
+            active_connections[camera_id].remove(websocket)
+        if not active_connections.get(camera_id):
+            active_connections.pop(camera_id, None)
+            if cam_type == "rtsp":
+                from services.camera_worker import camera_manager
+                camera_manager.kill_worker(camera_id)
 
