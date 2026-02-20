@@ -7,12 +7,14 @@
 
 	let cameraName = $state('Loading...');
 	let cameraStatus = $state('connecting');
+	let cameraType = $state<'webcam' | 'rtsp'>('webcam');
+	let modelName = $state('yolo11n');
 	let errorMsg = $state<string | null>(null);
 	let zones = $state<any[]>([]);
 	let trackCount = $state(0);
 
-	// Action for Video Element
-	function videoAction(node: HTMLVideoElement) {
+	// Action for initializing the camera feed (works on both <video> and <div>)
+	function videoAction(node: HTMLElement) {
 		let isDestroyed = false;
 
 		const initVideo = async () => {
@@ -22,14 +24,15 @@
 
 				const camera = await res.json();
 				cameraName = camera.name;
+				cameraType = camera.type;
+				modelName = camera.model_name || 'yolo11n';
 				zones = camera.zones || [];
 
-				if (camera.type === 'webcam') {
+				if (camera.type === 'webcam' && node instanceof HTMLVideoElement) {
 					if (videoStore.videoStream) {
 						node.srcObject = videoStore.videoStream;
 						cameraStatus = 'live';
 					} else {
-						// Svelte store was reset (e.g., user refreshed the page)
 						try {
 							const stream = await navigator.mediaDevices.getUserMedia({
 								video:
@@ -42,13 +45,13 @@
 							node.srcObject = stream;
 							cameraStatus = 'live';
 						} catch (err) {
-							console.error('Failed to restore webcam stream:', err);
+							console.error('Failed to restore webcam:', err);
 							errorMsg = 'Webcam access denied or unavailable.';
 							cameraStatus = 'error';
 						}
 					}
 				} else if (camera.type === 'rtsp') {
-					cameraStatus = 'live (rtsp simulation)';
+					cameraStatus = 'live';
 				}
 			} catch (err) {
 				if (isDestroyed) return;
@@ -67,14 +70,14 @@
 		};
 	}
 
-	// Action for Canvas Overlay (WebSocket + frame relay)
+	// Action for Canvas Overlay (WebSocket + frame relay for webcam / listen-only for RTSP)
 	function overlayAction(node: HTMLCanvasElement) {
 		const ws = new WebSocket(`ws://localhost:8000/api/cameras/${taskId}/ws`);
 		let resizeObserver: ResizeObserver | null = null;
 		let captureInterval: ReturnType<typeof setInterval> | null = null;
 		let videoEl: HTMLVideoElement | null = null;
 
-		// Hidden offscreen canvas for frame capture
+		// Hidden offscreen canvas for webcam frame capture
 		const captureCanvas = document.createElement('canvas');
 		const captureCtx = captureCanvas.getContext('2d');
 
@@ -94,36 +97,41 @@
 		ws.onopen = () => {
 			console.log('Analytics WebSocket connected');
 
-			// Find the sibling <video> element
-			videoEl = node.parentElement?.querySelector('video') ?? null;
-			if (!videoEl) {
-				console.warn('No <video> element found for frame capture');
-				return;
+			// Only send frames if this is a webcam camera
+			if (cameraType === 'webcam') {
+				videoEl = node.parentElement?.querySelector('video') ?? null;
+				if (!videoEl) {
+					console.warn('No <video> element found for frame capture');
+					return;
+				}
+
+				// Start sending frames at ~8 FPS
+				captureInterval = setInterval(() => {
+					if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
+
+					captureCanvas.width = videoEl.videoWidth || 640;
+					captureCanvas.height = videoEl.videoHeight || 480;
+					captureCtx?.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+
+					captureCanvas.toBlob(
+						(blob) => {
+							if (blob && ws.readyState === WebSocket.OPEN) {
+								blob.arrayBuffer().then((buf) => ws.send(buf));
+							}
+						},
+						'image/jpeg',
+						0.6
+					);
+				}, 125); // ~8 FPS
 			}
-
-			// Start sending frames at ~8 FPS
-			captureInterval = setInterval(() => {
-				if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
-
-				captureCanvas.width = videoEl.videoWidth || 640;
-				captureCanvas.height = videoEl.videoHeight || 480;
-				captureCtx?.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
-
-				captureCanvas.toBlob(
-					(blob) => {
-						if (blob && ws.readyState === WebSocket.OPEN) {
-							blob.arrayBuffer().then((buf) => ws.send(buf));
-						}
-					},
-					'image/jpeg',
-					0.6 // Quality 60% — balance between speed and accuracy
-				);
-			}, 125); // ~8 FPS
+			// For RTSP, the backend thread pushes analytics — we just listen
 		};
 
 		ws.onmessage = (event) => {
 			try {
-				const data = JSON.parse(event.data);
+				// Handle both text (RTSP push) and JSON string responses
+				const raw = typeof event.data === 'string' ? event.data : '';
+				const data = JSON.parse(raw);
 				if (data.resolution) videoRes = data.resolution;
 				if (data.boxes) {
 					drawOverlay(node, data.boxes, videoRes);
@@ -155,10 +163,6 @@
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		// Calculate scale factors between the raw video stream and the HTML canvas rendering size
-		// The aspect ratio is preserved by object-contain, so the video might not fill the entire canvas!
-		// But in our setup, AspectRatio component is strictly enforcing 16:9, and we assume video matches it.
-		// A more robust way is calculating the letterboxing offsets, but for now simple stretch works if 16:9.
 		const scaleX = canvas.width / videoRes.w;
 		const scaleY = canvas.height / videoRes.h;
 
@@ -237,8 +241,22 @@
 		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4">
 			<div class="relative overflow-hidden rounded-lg border bg-black shadow-lg">
 				<AspectRatio ratio={16 / 9} class="group relative max-h-[80vh]">
-					<video use:videoAction class="h-full w-full object-contain" autoplay playsinline muted
-					></video>
+					{#if cameraType === 'webcam'}
+						<video use:videoAction class="h-full w-full object-contain" autoplay playsinline muted
+						></video>
+					{:else}
+						<!-- RTSP: no browser-side video stream; show info overlay on the canvas -->
+						<div
+							use:videoAction
+							class="flex h-full w-full items-center justify-center text-muted-foreground"
+						>
+							{#if cameraStatus === 'connecting'}
+								<span class="animate-pulse">Connecting to RTSP stream...</span>
+							{:else if cameraStatus === 'live'}
+								<span class="text-sm opacity-50">RTSP — Backend processing active</span>
+							{/if}
+						</div>
+					{/if}
 
 					<canvas use:overlayAction class="pointer-events-none absolute top-0 left-0 h-full w-full"
 					></canvas>
@@ -248,7 +266,7 @@
 			<div class="grid grid-cols-3 gap-4">
 				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
 					<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
-					<div class="mt-1 text-lg tracking-tight">YOLO11n (Live)</div>
+					<div class="mt-1 text-lg tracking-tight">{modelName} (Live)</div>
 				</div>
 				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
 					<div class="text-sm font-semibold text-muted-foreground">Active Zones</div>
