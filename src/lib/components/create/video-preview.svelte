@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { useVideo } from '$lib/stores/video-store.svelte';
 	import DrawingCanvas, { type Point, type Zone } from './drawing-canvas.svelte';
+	import RtspSnapshotPreview from './rtsp-snapshot-preview.svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -101,18 +102,15 @@
 </script>
 
 {#if videoState?.videoType === 'rtsp'}
-	<div
-		class="flex h-full w-full flex-col items-center justify-center bg-black p-4 text-center text-muted-foreground"
-	>
-		<p class="mb-2 font-semibold">RTSP Stream Placeholder</p>
-		<div class="max-w-full rounded bg-zinc-900 p-2 font-mono text-xs break-all">
-			{videoState.videoConfig?.url || 'No URL provided'}
-		</div>
-		<p class="mt-4 max-w-[300px] text-xs opacity-50">
-			Note: Real RTSP streaming requires a backend transcoder (e.g. go2rtc/ffmpeg). This is just a
-			UI demonstration of the data flow.
-		</p>
-	</div>
+	<RtspSnapshotPreview
+		url={videoState.videoConfig?.url || videoState.videoUrl || ''}
+		{zones}
+		{selectedZoneId}
+		{drawingMode}
+		{onZoneCreated}
+		{onZoneSelected}
+		{onZoneUpdated}
+	/>
 {:else if !videoState?.videoUrl && !videoState?.videoStream}
 	<div class="flex h-full w-full items-center justify-center bg-black text-muted-foreground">
 		<p>No video selected</p>
