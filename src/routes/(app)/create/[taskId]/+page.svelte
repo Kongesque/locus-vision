@@ -13,10 +13,12 @@
 	const taskId = $derived($page.params.taskId);
 
 	// Initialize Video Store (Context)
-	// We load the video URL from the global store if available (from upload page)
+	// We load the video details from the global store if available
 	setVideoContext({
 		videoUrl: videoStore.videoUrl || null,
-		videoType: videoStore.videoType === 'file' ? 'file' : null
+		videoType: videoStore.videoType as 'file' | 'stream' | 'rtsp' | null,
+		videoStream: videoStore.videoStream || null,
+		videoConfig: videoStore.videoType === 'rtsp' ? { url: videoStore.videoUrl } : null
 	});
 
 	// State
