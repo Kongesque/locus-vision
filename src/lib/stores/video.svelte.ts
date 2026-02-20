@@ -1,6 +1,6 @@
 function createVideoStore() {
     let videoUrl = $state<string | null>(null);
-    let videoType = $state<'file' | 'url' | null>(null);
+    let videoType = $state<'file' | 'url' | 'stream' | 'rtsp' | null>(null);
 
     return {
         get videoUrl() {
@@ -12,7 +12,7 @@ function createVideoStore() {
         setVideoUrl: (url: string | null) => {
             videoUrl = url;
         },
-        setVideoType: (type: 'file' | 'url' | null) => {
+        setVideoType: (type: 'file' | 'url' | 'stream' | 'rtsp' | null) => {
             videoType = type;
         }
     };

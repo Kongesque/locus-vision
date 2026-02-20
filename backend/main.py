@@ -9,6 +9,7 @@ from database import init_db
 from routers.auth import router as auth_router
 from routers.settings import router as settings_router
 from routers.video_processing import router as video_router
+from routers.cameras import router as cameras_router
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(settings_router)
 app.include_router(video_router)
+app.include_router(cameras_router)
 
 
 @app.get("/api/health")

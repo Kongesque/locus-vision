@@ -64,30 +64,61 @@
 	}
 
 	async function handleProcess() {
-		if (!videoStore.videoUrl || videoStore.videoType !== 'file') {
-			alert('No video file selected');
+		if (!videoStore.videoUrl && videoStore.videoType !== 'stream') {
+			alert('No video or stream source available');
 			return;
 		}
 
-		// Convert blob URL to File (fast, in-memory — no network)
-		const response = await fetch(videoStore.videoUrl);
-		const blob = await response.blob();
-		const file = new File([blob], 'video.mp4', { type: 'video/mp4' });
+		if (videoStore.videoType === 'file' && videoStore.videoUrl) {
+			// --- Existing File Upload Flow ---
+			// Convert blob URL to File (fast, in-memory — no network)
+			const response = await fetch(videoStore.videoUrl);
+			const blob = await response.blob();
+			const file = new File([blob], 'video.mp4', { type: 'video/mp4' });
 
-		const formData = new FormData();
-		formData.append('video', file);
-		formData.append('zones', JSON.stringify(zones));
-		formData.append('model', selectedModel);
-		formData.append('classes', JSON.stringify(fullFrameClasses));
+			const formData = new FormData();
+			formData.append('video', file);
+			formData.append('zones', JSON.stringify(zones));
+			formData.append('model', selectedModel);
+			formData.append('classes', JSON.stringify(fullFrameClasses));
 
-		// Fire-and-forget: upload in background
-		fetch(`http://localhost:8000/api/video/${taskId}/process`, {
-			method: 'POST',
-			body: formData
-		}).catch((err) => console.error('Upload failed:', err));
+			// Fire-and-forget: upload in background
+			fetch(`http://localhost:8000/api/video/${taskId}/process`, {
+				method: 'POST',
+				body: formData
+			}).catch((err) => console.error('Upload failed:', err));
 
-		// Redirect immediately to task result page
-		goto(`/video-analytics/${taskId}`);
+			// Redirect immediately to task result page
+			goto(`/video-analytics/${taskId}`);
+		} else {
+			// --- New Camera Analytics Flow ---
+			try {
+				const response = await fetch(`http://localhost:8000/api/cameras/${taskId}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						name: 'Updated Camera', // We'd ideally pull the original name from the store, but this suffices for now
+						type: videoStore.videoType,
+						url: videoStore.videoUrl,
+						zones: zones,
+						model_name: selectedModel,
+						classes: fullFrameClasses
+					})
+				});
+
+				if (!response.ok) {
+					console.error('Failed to update camera config');
+					alert('Failed to configure camera analytics');
+					return;
+				}
+
+				// Redirect to livestream view with WebSocket bounds overlay
+				goto(`/livestream/${taskId}`);
+			} catch (err) {
+				console.error(err);
+				alert('Camera configuration error: ' + String(err));
+			}
+		}
 	}
 </script>
 

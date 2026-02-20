@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount } from 'svelte';
 	import PageTitle from '$lib/components/page-title-2.svelte';
 	import AddCamera from '$lib/components/livestream/add-camera.svelte';
 	import LiveCard from './live-card.svelte';
@@ -14,40 +14,49 @@
 
 	let { initialGridCols = 3 }: { initialGridCols?: number } = $props();
 
-	// svelte-ignore state_referenced_locally
 	let gridCols = $state(initialGridCols);
 
-	$effect(() => {
-		gridCols = initialGridCols;
-	});
 	let isFullscreen = $state(false);
 	let cameras: Camera[] = $state([]);
 	let gridContainer: HTMLDivElement | null = $state(null);
 
-	onMount(() => {
-		fetch('/data/events.json')
-			.then((res) => res.json())
-			.then((data) => {
-				if (data.cameras) {
-					cameras = data.cameras;
-				}
-			})
-			.catch((err) => console.error('Failed to load cameras:', err));
+	// Container action to manage fullscreen requests
+	function fullscreenAction(node: HTMLDivElement) {
+		gridContainer = node;
 
 		const handleFullscreenChange = () => {
 			isFullscreen = !!document.fullscreenElement;
 		};
 
 		document.addEventListener('fullscreenchange', handleFullscreenChange);
-		return () => {
-			document.removeEventListener('fullscreenchange', handleFullscreenChange);
+		return {
+			destroy() {
+				gridContainer = null;
+				document.removeEventListener('fullscreenchange', handleFullscreenChange);
+			}
 		};
+	}
+
+	onMount(() => {
+		fetch('http://localhost:8000/api/cameras/')
+			.then((res) => {
+				if (!res.ok) throw new Error('Failed to fetch cameras');
+				return res.json();
+			})
+			.then((data: Camera[]) => {
+				cameras = data.map((cam) => ({
+					...cam,
+					status: cam.status || 'offline',
+					thumbnail: cam.thumbnail || '/locus.png'
+				}));
+			})
+			.catch((err) => console.error('Failed to load cameras:', err));
 	});
 
 	const toggleFullscreen = () => {
 		if (!document.fullscreenElement) {
 			gridContainer?.requestFullscreen().catch((err) => {
-				console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+				console.error(`Error attempting to enable full-screen mode: ${err.message}`);
 			});
 		} else {
 			document.exitFullscreen();
@@ -68,13 +77,22 @@
 	</div>
 
 	<div
-		bind:this={gridContainer}
+		use:fullscreenAction
 		class={`relative flex flex-1 flex-col ${isFullscreen ? 'fixed top-0 left-0 z-50 h-screen w-screen overflow-y-auto bg-background' : ''}`}
 	>
 		<div
-			class={`grid auto-rows-min grid-cols-1 gap-2 md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))] ${isFullscreen ? 'w-full p-4' : ''}`}
+			class={`grid auto-rows-min grid-cols-1 gap-4 md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))] ${isFullscreen ? 'w-full p-4' : ''}`}
 			style="--cols: {gridCols}"
 		>
+			{#if cameras.length === 0}
+				<div
+					class="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center"
+				>
+					<p class="text-sm text-muted-foreground">No cameras configured yet.</p>
+					<p class="mt-1 text-xs text-muted-foreground">Click "Add Camera" to get started.</p>
+				</div>
+			{/if}
+
 			{#each cameras as camera (camera.id)}
 				<LiveCard
 					cameraId={camera.id}
@@ -86,11 +104,13 @@
 			{/each}
 		</div>
 
-		<LivestreamControls
-			{gridCols}
-			setGridCols={(cols) => (gridCols = cols)}
-			{isFullscreen}
-			{toggleFullscreen}
-		/>
+		{#if cameras.length > 0}
+			<LivestreamControls
+				{gridCols}
+				setGridCols={(cols) => (gridCols = cols)}
+				{isFullscreen}
+				{toggleFullscreen}
+			/>
+		{/if}
 	</div>
 </div>

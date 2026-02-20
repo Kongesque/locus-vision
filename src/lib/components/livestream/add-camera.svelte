@@ -6,9 +6,12 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Plus } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { videoStore } from '$lib/stores/video.svelte';
 
 	let open = $state(false);
 	let activeTab = $state('rtsp');
+	let isConnecting = $state(false);
 
 	// RTSP form fields
 	let rtspName = $state('');
@@ -18,20 +21,41 @@
 	let webcamName = $state('');
 	let selectedDeviceId = $state<string | undefined>(undefined);
 
-	function handleConnect() {
-		open = false;
+	async function handleConnect() {
+		try {
+			isConnecting = true;
+			const cameraId = crypto.randomUUID();
+			const config = {
+				id: cameraId,
+				name: activeTab === 'webcam' ? webcamName || 'Webcam' : rtspName || 'RTSP Stream',
+				type: activeTab,
+				url: activeTab === 'rtsp' ? rtspUrl : null,
+				device_id: activeTab === 'webcam' ? selectedDeviceId : null
+			};
 
-		if (activeTab === 'webcam') {
-			// TODO: Handle webcam connection
-			// - Request camera access via navigator.mediaDevices.getUserMedia()
-			// - Save camera configuration via POST /api/cameras
-			console.log('Connect webcam:', { name: webcamName, deviceId: selectedDeviceId });
-		} else {
-			// TODO: Handle RTSP connection
-			// - Validate RTSP URL format
-			// - Test connection to RTSP stream
-			// - Save camera configuration via POST /api/cameras
-			console.log('Connect RTSP:', { name: rtspName, url: rtspUrl });
+			const response = await fetch('http://localhost:8000/api/cameras/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(config)
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.detail || 'Failed to create camera');
+			}
+
+			// Sync with global store so create page knows what we're editing
+			videoStore.setVideoType(activeTab as 'rtsp' | 'stream'); // temporarily cast to valid types
+			if (activeTab === 'rtsp') videoStore.setVideoUrl(rtspUrl);
+			else videoStore.setVideoType('stream');
+
+			open = false;
+			goto(`/create/${cameraId}`);
+		} catch (err) {
+			console.error(err);
+			alert('Failed to connect camera: ' + (err instanceof Error ? err.message : String(err)));
+		} finally {
+			isConnecting = false;
 		}
 	}
 </script>
@@ -61,7 +85,12 @@
 			<Tabs.Content value="rtsp" class="space-y-4 py-4">
 				<div class="space-y-2">
 					<Label for="rtsp-name">Camera Name</Label>
-					<Input id="rtsp-name" placeholder="e.g. Front Door" bind:value={rtspName} />
+					<Input
+						id="rtsp-name"
+						placeholder="e.g. Front Door"
+						bind:value={rtspName}
+						disabled={isConnecting}
+					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="rtsp-url">Stream URL</Label>
@@ -69,6 +98,7 @@
 						id="rtsp-url"
 						placeholder="rtsp://admin:password@192.168.1.10:554/stream"
 						bind:value={rtspUrl}
+						disabled={isConnecting}
 					/>
 				</div>
 			</Tabs.Content>
@@ -76,11 +106,16 @@
 			<Tabs.Content value="webcam" class="space-y-4 py-4">
 				<div class="space-y-2">
 					<Label for="webcam-name">Camera Name</Label>
-					<Input id="webcam-name" placeholder="e.g. Desk Webcam" bind:value={webcamName} />
+					<Input
+						id="webcam-name"
+						placeholder="e.g. Desk Webcam"
+						bind:value={webcamName}
+						disabled={isConnecting}
+					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="device">Device</Label>
-					<Select.Root type="single" bind:value={selectedDeviceId}>
+					<Select.Root type="single" bind:value={selectedDeviceId} disabled={isConnecting}>
 						<Select.Trigger id="device" placeholder="Select a device" />
 						<Select.Content>
 							<Select.Item value="default">Default Camera</Select.Item>
@@ -102,12 +137,15 @@
 		</Tabs.Root>
 
 		<Dialog.Footer>
-			<Button variant="outline" class="cursor-pointer" onclick={() => (open = false)}>Cancel</Button
+			<Button
+				variant="outline"
+				class="cursor-pointer"
+				onclick={() => (open = false)}
+				disabled={isConnecting}>Cancel</Button
 			>
-			<!-- TODO: Implement backend integration -->
-			<!-- - POST /api/cameras to save new camera configuration -->
-			<!-- - Handle connection testing before saving -->
-			<Button class="cursor-pointer" onclick={handleConnect}>Connect</Button>
+			<Button class="cursor-pointer" onclick={handleConnect} disabled={isConnecting}>
+				{isConnecting ? 'Connecting...' : 'Connect'}
+			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

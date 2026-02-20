@@ -143,3 +143,28 @@ class VideoTask(BaseModel):
     format: str | None = None
     model_name: str | None = None
 
+
+class CameraCreate(BaseModel):
+    id: str
+    name: str
+    type: str  # 'rtsp' or 'webcam'
+    url: str | None = None
+    device_id: str | None = None
+    zones: list | None = None
+    model_name: str | None = None
+    classes: list | None = None
+
+
+class Camera(BaseModel):
+    id: str
+    name: str
+    type: str
+    url: str | None = None
+    device_id: str | None = None
+    status: str
+    zones: list | None = None
+    model_name: str | None = None
+    classes: list | None = None
+    created_at: str
+    updated_at: str
+
