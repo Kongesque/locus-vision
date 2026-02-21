@@ -24,7 +24,6 @@
 
 	// Icons
 	import {
-		Trash2,
 		Slash,
 		Square,
 		X,
@@ -361,12 +360,12 @@
 																	onValueChange={(v) =>
 																		v &&
 																		onZoneDirectionChanged(zone.id, v as 'both' | 'in' | 'out')}
-																	class="w-full justify-stretch"
+																	class="w-full justify-stretch gap-1 rounded-md bg-muted p-1"
 																>
 																	<ToggleGroup.Item
 																		value="both"
 																		aria-label="A ↔ B"
-																		class="flex-1 gap-1 font-mono text-[10px]"
+																		class="flex-1 gap-1 rounded-[4px] font-mono text-[10px] data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
 																	>
 																		<ArrowUpDown class="h-3 w-3" />
 																		A ↔ B
@@ -374,7 +373,7 @@
 																	<ToggleGroup.Item
 																		value="in"
 																		aria-label="A → B"
-																		class="flex-1 gap-1 font-mono text-[10px]"
+																		class="flex-1 gap-1 rounded-[4px] font-mono text-[10px] data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
 																	>
 																		<ArrowDown class="h-3 w-3" />
 																		A → B
@@ -382,7 +381,7 @@
 																	<ToggleGroup.Item
 																		value="out"
 																		aria-label="B → A"
-																		class="flex-1 gap-1 font-mono text-[10px]"
+																		class="flex-1 gap-1 rounded-[4px] font-mono text-[10px] data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
 																	>
 																		<ArrowUp class="h-3 w-3" />
 																		B → A

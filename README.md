@@ -23,9 +23,9 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 
 - **Edge-Optimized AI** — Lightweight ONNX Runtime inference (~15MB engine) replaces heavy PyTorch dependencies, halving the backend footprint for Raspberry Pi 5 deployment.
 - **Unified Analytics Engine** — Shared stateful object tracking (ByteTrack) and zone-based ROI counting logic serving both real-time streams and recorded video tasks.
+- **Directional Line Crossing** — A/B region virtual lines with mathematically accurate vector cross-product trajectory detection (A↔B, A→B, B→A).
 - **Live Stream** — Real-time RTSP/Webcam feeds with HLS proxying and ultra-low-latency WebSocket bounding box overlays drawn seamlessly on the frontend canvas.
-- **Video Analytics** — Process offline video files with custom polygonal zones, class filtering, and downloadable hard-annotated MP4 results.
-- **Theme Switching** — built-in support for auto, dark, and light modes
+- **Video Analytics** — Process offline video files with custom polygonal and line zones, class filtering, and downloadable hard-annotated MP4 results perfectly matching the livestream UI.
 - **Authentication** — JWT-based auth with HttpOnly cookies, auto-refresh
 - **Role-Based Access** — admin and viewer roles
 - **User Management** — admin panel for user CRUD, role assignment, activation
