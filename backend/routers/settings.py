@@ -1,5 +1,6 @@
-"""Settings & Admin API router."""
-
+import logging
+import os
+import shutil
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -326,3 +327,38 @@ async def update_app_settings(
 
     allow_signup = await get_app_setting("allow_signup", "false")
     return AppSettingsResponse(allow_signup=allow_signup == "true")
+
+
+@router.delete("/api/admin/media", response_model=MessageResponse)
+async def delete_all_media(admin: dict = Depends(_require_admin)):
+    """Admin only: Delete all video tasks, cameras, and physical media files."""
+    db = await get_db()
+    try:
+        # 1. Clear database tables
+        await db.execute("DELETE FROM video_tasks")
+        await db.execute("DELETE FROM cameras")
+        await db.commit()
+
+        # 2. Clear physical files in data/videos
+        # Note: Do not delete data/models
+        video_dir = "data/videos"
+        if os.path.exists(video_dir):
+            for filename in os.listdir(video_dir):
+                file_path = os.path.join(video_dir, filename)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    logging.error(f"Failed to delete {file_path}. Reason: {e}")
+                    
+        return MessageResponse(message="All videos and streams have been permanently deleted.")
+    except Exception as e:
+        logging.error(f"Error deleting media: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete media files and database records."
+        )
+    finally:
+        await db.close()

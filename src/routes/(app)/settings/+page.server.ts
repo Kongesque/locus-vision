@@ -194,5 +194,21 @@ export const actions: Actions = {
         }
 
         return { settingsSuccess: true };
+    },
+
+    deleteAllMedia: async ({ cookies }) => {
+        const accessToken = cookies.get('access_token');
+
+        const res = await fetch(`${API_BASE}/api/admin/media`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            return fail(res.status, { adminError: err.detail || 'Failed to delete media' });
+        }
+
+        return { adminSuccess: true, message: 'All media and stream configurations deleted successfully' };
     }
 };

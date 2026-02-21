@@ -11,12 +11,15 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
-	let { data, form } = $props();
+	let { data, form }: { data: any; form: any } = $props();
 	let loading = $state('');
 
 	// Delete user confirmation
 	let deleteUserId = $state<number | null>(null);
 	let deleteUserName = $state('');
+
+	// Delete all media confirmation
+	let deleteAllMediaDialog = $state(false);
 </script>
 
 <svelte:head>
@@ -244,6 +247,30 @@
 			</Card.Content>
 		</Card.Root>
 
+		<!-- DATA MANAGEMENT -->
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-lg text-destructive">Data Management</Card.Title>
+				<Card.Description>Manage application data and media files</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<div class="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
+					<div class="space-y-0.5">
+						<Label class="text-sm font-medium">Clear All Media</Label>
+						<p class="text-sm text-muted-foreground">
+							Permanently delete all videos, tasks, and camera stream configurations
+						</p>
+					</div>
+					<Button variant="destructive" size="sm" onclick={() => (deleteAllMediaDialog = true)}>
+						Clear Media
+					</Button>
+				</div>
+				{#if form?.adminSuccess && form?.message}
+					<p class="mt-4 text-sm text-green-600">{form.message}</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
 		<!-- USER MANAGEMENT -->
 		<Card.Root>
 			<Card.Header>
@@ -375,6 +402,32 @@
 			<form method="POST" action="?/deleteUser" use:enhance class="inline">
 				<input type="hidden" name="user_id" value={deleteUserId} />
 				<Button type="submit" variant="destructive">Delete User</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Delete All Media Confirmation Dialog -->
+<AlertDialog.Root
+	open={deleteAllMediaDialog}
+	onOpenChange={(open) => {
+		if (!open) deleteAllMediaDialog = false;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete All Media</AlertDialog.Title>
+			<AlertDialog.Description>
+				Are you sure you want to delete all videos, processing tasks, and camera configurations?
+				This action cannot be undone and all physical media files will be permanently removed.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (deleteAllMediaDialog = false)}>Cancel</AlertDialog.Cancel>
+			<form method="POST" action="?/deleteAllMedia" use:enhance class="inline">
+				<Button type="submit" variant="destructive" onclick={() => (deleteAllMediaDialog = false)}
+					>Delete All</Button
+				>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
