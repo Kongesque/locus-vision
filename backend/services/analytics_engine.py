@@ -144,13 +144,45 @@ class AnalyticsEngine:
         Draw bounding boxes, labels, zones, and count overlay on a frame.
         Matches the same visual style as the livestream canvas overlay.
         """
-        # Draw zone polygons (dashed-style via polylines)
+        # Draw zone polygons (dashed-style)
         for zone in self.parsed_zones:
-            cv2.polylines(frame, [zone.poly], True, zone.color, 2)
             # Semi-transparent fill
             overlay = frame.copy()
             cv2.fillPoly(overlay, [zone.poly], zone.color)
             cv2.addWeighted(overlay, 0.1, frame, 0.9, 0, frame)
+
+            # Draw dashed borders
+            dash_length = 10
+            gap_length = 5
+            pts = zone.poly
+            num_pts = len(pts)
+            for i in range(num_pts):
+                pt1 = tuple(pts[i])
+                pt2 = tuple(pts[(i + 1) % num_pts])
+                
+                # Calculate vector and distance
+                dx = pt2[0] - pt1[0]
+                dy = pt2[1] - pt1[1]
+                dist = np.sqrt(dx**2 + dy**2)
+                
+                if dist == 0:
+                    continue
+                    
+                dx_norm = dx / dist
+                dy_norm = dy / dist
+                
+                # Draw dashes along the segment
+                curr_dist = 0
+                while curr_dist < dist:
+                    start_x = int(pt1[0] + dx_norm * curr_dist)
+                    start_y = int(pt1[1] + dy_norm * curr_dist)
+                    
+                    curr_dist = min(curr_dist + dash_length, dist)
+                    end_x = int(pt1[0] + dx_norm * curr_dist)
+                    end_y = int(pt1[1] + dy_norm * curr_dist)
+                    
+                    cv2.line(frame, (start_x, start_y), (end_x, end_y), zone.color, 2)
+                    curr_dist += gap_length
 
         # Draw bounding boxes with labels
         for box in result.boxes:

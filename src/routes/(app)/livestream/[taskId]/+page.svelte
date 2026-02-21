@@ -224,7 +224,7 @@
 			ctx.beginPath();
 			ctx.strokeStyle = zone.color || '#00ff00';
 			ctx.lineWidth = 2;
-			// Removed setLineDash to keep solid lines consistent with OpenCV backend
+			ctx.setLineDash([5, 5]);
 
 			const firstPt = zone.points[0];
 			ctx.moveTo(firstPt.x * scaleX, firstPt.y * scaleY);
@@ -234,6 +234,7 @@
 			}
 			if (zone.type === 'polygon') ctx.closePath();
 			ctx.stroke();
+			ctx.setLineDash([]);
 
 			// Semi-transparent fill
 			ctx.fillStyle = (zone.color || '#00ff00') + '1a';
