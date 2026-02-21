@@ -130,6 +130,7 @@ class AnalyticsEngine:
                     "conf": round(float(conf), 2),
                     "label": self.detector.names.get(cls_idx, f"class_{cls_idx}"),
                     "in_zone": in_zone,
+                    "is_counted": track_id in self.crossed_objects,
                 })
 
         return AnalyticsResult(

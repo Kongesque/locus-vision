@@ -13,16 +13,18 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 | UI Components | shadcn-svelte, mode-watcher (Themes) |
 | Backend | FastAPI, Python |
 | Database | SQLite (async via aiosqlite) |
-| AI / Vision | YOLO (Object Detection, Tracking & Counting) |
+| AI / Vision | ONNX Runtime (YOLO11n), ByteTrack (supervision), OpenCV |
 | Auth | JWT (access + refresh tokens), Argon2id |
-| Build | Vite 7 |
+| Build | Vite |
 | Testing | Vitest |
 | Linting | ESLint + Prettier |
 
 ## Features
 
-- **Live Stream** — real-time RTSP camera feeds with YOLO object detection and HLS streaming
-- **Video Analytics** — process videos for object detection, tracking, and counting with customizable zones and class filtering
+- **Edge-Optimized AI** — Lightweight ONNX Runtime inference (~15MB engine) replaces heavy PyTorch dependencies, halving the backend footprint for Raspberry Pi 5 deployment.
+- **Unified Analytics Engine** — Shared stateful object tracking (ByteTrack) and zone-based ROI counting logic serving both real-time streams and recorded video tasks.
+- **Live Stream** — Real-time RTSP/Webcam feeds with HLS proxying and ultra-low-latency WebSocket bounding box overlays drawn seamlessly on the frontend canvas.
+- **Video Analytics** — Process offline video files with custom polygonal zones, class filtering, and downloadable hard-annotated MP4 results.
 - **Theme Switching** — built-in support for auto, dark, and light modes
 - **Authentication** — JWT-based auth with HttpOnly cookies, auto-refresh
 - **Role-Based Access** — admin and viewer roles

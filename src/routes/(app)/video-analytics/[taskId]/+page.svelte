@@ -83,81 +83,86 @@
 </svelte:head>
 
 <div class="flex flex-1 flex-col gap-4 p-4">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/video-analytics">
-			<ChevronLeft class="h-4 w-4" />
-		</Button>
-		<h1 class="text-2xl font-bold tracking-tight">
-			{task ? task.filename : `Task ${taskId.slice(0, 8)}`}
-		</h1>
-		{#if status === 'processing'}
-			<div class="flex items-center gap-2 text-sm text-muted-foreground">
-				<Loader2 class="h-4 w-4 animate-spin" />
-				Processing...
-			</div>
-		{/if}
+	<div class="mb-2 flex items-center justify-between">
+		<div class="flex items-center gap-4">
+			<Button variant="ghost" size="icon" href="/video-analytics">
+				<ChevronLeft class="h-4 w-4" />
+			</Button>
+			<h1 class="text-2xl font-bold tracking-tight">
+				{task ? task.filename : `Task ${taskId.slice(0, 8)}`}
+			</h1>
+		</div>
+		<div class="flex items-center gap-2">
+			<span class="relative flex h-3 w-3">
+				{#if status === 'processing' || status === 'loading'}
+					<span
+						class="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"
+					></span>
+					<span class="relative inline-flex h-3 w-3 rounded-full bg-yellow-500"></span>
+				{:else if status === 'ready'}
+					<span
+						class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
+					></span>
+					<span class="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+				{:else}
+					<span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
+				{/if}
+			</span>
+			<span class="text-sm font-medium text-muted-foreground capitalize">
+				{status === 'loading' ? 'connecting' : status}
+			</span>
+		</div>
 	</div>
 
-	<div class="flex flex-1 flex-col gap-4 lg:flex-row">
-		<div class="flex w-full flex-col gap-4 lg:w-3/4">
-			<!-- Video Player -->
-			<div class="group relative overflow-hidden rounded-lg border bg-black shadow-sm">
-				<AspectRatio ratio={16 / 9} class="flex max-h-[70vh] items-center justify-center">
+	{#if status === 'error'}
+		<div class="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-red-500">
+			Failed to load video result.
+		</div>
+	{/if}
+
+	<div class="flex flex-1 flex-row gap-4">
+		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4">
+			<div class="relative overflow-hidden rounded-lg border bg-black shadow-lg">
+				<AspectRatio ratio={16 / 9} class="group relative max-h-[80vh]">
 					{#if status === 'ready' && videoSrc}
 						<!-- svelte-ignore a11y_media_has_caption -->
-						<video src={videoSrc} class="h-full w-full object-contain" controls autoplay loop
+						<video
+							src={videoSrc}
+							class="h-full w-full object-contain"
+							controls
+							autoplay
+							loop
+							playsinline
+							crossorigin="anonymous"
 						></video>
 					{:else if status === 'processing' || status === 'loading'}
-						<div class="flex flex-col items-center gap-4 text-muted-foreground">
+						<div
+							class="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground"
+						>
 							<Loader2 class="h-8 w-8 animate-spin" />
 							<p>Processing video task...</p>
 							<p class="text-xs opacity-70">
 								This typically takes 10-30 seconds depending on video length.
 							</p>
 						</div>
-					{:else if status === 'error'}
-						<div class="flex flex-col items-center gap-2 text-destructive">
-							<p>Failed to load video result.</p>
-						</div>
 					{/if}
 				</AspectRatio>
 			</div>
-		</div>
 
-		<!-- Sidebar / Details -->
-		<div class="flex w-full flex-col gap-4 lg:w-1/4">
-			<div class="rounded-lg border p-4">
-				<h3 class="mb-4 font-semibold">Details</h3>
-				<div class="flex flex-col gap-2 text-sm text-muted-foreground">
-					{#if task}
-						<div class="flex justify-between">
-							<span>Duration</span>
-							<span class="font-medium text-foreground">{task.duration || '--:--'}</span>
-						</div>
-						<div class="flex justify-between">
-							<span>Created</span>
-							<span class="font-medium text-foreground"
-								>{new Date(task.created_at).toLocaleString()}</span
-							>
-						</div>
-						<div class="flex justify-between">
-							<span>Format</span>
-							<span class="font-medium text-foreground">{task.format || 'mp4'}</span>
-						</div>
-						<div class="flex justify-between">
-							<span>Model</span>
-							<span class="font-medium text-foreground">{task.model_name || 'N/A'}</span>
-						</div>
-					{:else}
-						<div class="flex justify-between">
-							<span>Task ID</span>
-							<span class="font-mono text-xs text-foreground">{taskId}</span>
-						</div>
-						<div class="flex justify-between">
-							<span>Status</span>
-							<span class="font-medium text-foreground capitalize">{status}</span>
-						</div>
-					{/if}
+			<div class="grid grid-cols-3 gap-4">
+				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+					<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
+					<div class="mt-1 text-lg tracking-tight">
+						{task ? task.model_name || 'yolo11n' : 'Loading...'}
+					</div>
+				</div>
+				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+					<div class="text-sm font-semibold text-muted-foreground">Duration</div>
+					<div class="mt-1 text-lg tracking-tight">{task ? task.duration || '--:--' : '--:--'}</div>
+				</div>
+				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+					<div class="text-sm font-semibold text-muted-foreground">Output Format</div>
+					<div class="mt-1 text-lg tracking-tight">{task ? task.format || 'mp4' : 'mp4'}</div>
 				</div>
 			</div>
 		</div>

@@ -224,7 +224,7 @@
 			ctx.beginPath();
 			ctx.strokeStyle = zone.color || '#00ff00';
 			ctx.lineWidth = 2;
-			ctx.setLineDash([5, 5]);
+			// Removed setLineDash to keep solid lines consistent with OpenCV backend
 
 			const firstPt = zone.points[0];
 			ctx.moveTo(firstPt.x * scaleX, firstPt.y * scaleY);
@@ -234,7 +234,6 @@
 			}
 			if (zone.type === 'polygon') ctx.closePath();
 			ctx.stroke();
-			ctx.setLineDash([]);
 
 			// Semi-transparent fill
 			ctx.fillStyle = (zone.color || '#00ff00') + '1a';
@@ -244,7 +243,10 @@
 		// Draw boxes with zone-aware colors (matching video-analytics)
 		boxes.forEach((box) => {
 			// Orange = in zone, green = already counted, red = uncounted
-			const color = box.in_zone ? '#ff8c00' : '#ff0000';
+			let color = '#ff0000';
+			if (box.in_zone) color = '#ff8c00';
+			else if (box.is_counted) color = '#00c800';
+
 			ctx.strokeStyle = color;
 			ctx.lineWidth = 2;
 
