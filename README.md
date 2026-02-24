@@ -33,6 +33,22 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 - **Signup Control** — admin toggle for public registration (disabled by default)
 - **Settings** — account management, password change, security controls, theme mode selection, system storage statistics, and media deletion
 
+## Repository Structure
+
+```text
+locusvision/
+├── backend/               # FastAPI backend & analytics engine
+│   ├── routers/           # API endpoints (auth, video, settings, etc.)
+│   ├── services/          # Core analytics, vision, and stream processing services
+│   ├── main.py            # FastAPI application entry point
+│   └── database.py        # SQLite async database configuration
+├── src/                   # SvelteKit frontend application
+│   ├── lib/               # Shared UI components and utilities
+│   └── routes/            # Application pages (livestream, analytics, settings, etc.)
+├── scripts/               # Benchmarking and utility scripts
+└── static/                # Static assets (images, data)
+```
+
 ## Current Status & Recent Progress
 
 Locus is under active development. Recent milestones include:
