@@ -14,6 +14,7 @@ from routers.cameras import router as cameras_router
 
 import asyncio
 from services.camera_worker import camera_manager
+from services.job_queue import job_queue
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,9 +24,13 @@ async def lifespan(app: FastAPI):
     # Give the thread manager access to the core FastAPI event loop
     camera_manager.initialize(asyncio.get_running_loop())
     
+    # Start the video processing job queue worker
+    job_queue.start()
+    
     yield
     
     # Cleanup background workers on shutdown
+    job_queue.stop()
     camera_manager.shutdown_all()
 
 

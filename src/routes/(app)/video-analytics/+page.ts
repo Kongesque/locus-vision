@@ -7,6 +7,7 @@ export interface VideoTask {
     id: string;
     filename: string;
     status: string;
+    progress: number;
     created_at: string;
     completed_at: string | null;
     duration: string | null;
@@ -14,6 +15,7 @@ export interface VideoTask {
     model_name: string | null;
     total_count: number | null;
     zone_counts: string | null;
+    error_message: string | null;
 }
 
 export const load: PageLoad = async ({ fetch }) => {

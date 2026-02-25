@@ -137,6 +137,7 @@ class VideoTask(BaseModel):
     id: str
     filename: str
     status: str
+    progress: int = 0
     created_at: str
     completed_at: str | None = None
     duration: str | None = None
@@ -144,6 +145,7 @@ class VideoTask(BaseModel):
     model_name: str | None = None
     total_count: int | None = None
     zone_counts: str | None = None
+    error_message: str | None = None
 
 
 class CameraCreate(BaseModel):

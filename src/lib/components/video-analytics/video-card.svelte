@@ -13,6 +13,7 @@
 		createdAt: string;
 		format: string;
 		status?: string;
+		progress?: number;
 		onDownload?: () => void;
 		onDelete?: () => void;
 	}
@@ -25,6 +26,7 @@
 		createdAt,
 		format,
 		status = 'completed',
+		progress = 0,
 		onDownload,
 		onDelete
 	}: Props = $props();
@@ -52,7 +54,9 @@
 				? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'
 				: status === 'failed'
 					? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
-					: 'bg-secondary text-secondary-foreground'
+					: status === 'pending'
+						? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'
+						: 'bg-secondary text-secondary-foreground'
 	);
 </script>
 
@@ -69,23 +73,36 @@
 				onerror={handleImgError}
 			/>
 
-			<!-- Status Badge (if not completed or just to show status) -->
+			<!-- Status Badge -->
 			<div class="absolute top-2 left-2">
 				<Badge variant="outline" class="{statusColor} border-0 backdrop-blur-sm">
 					{#if status === 'processing'}
 						<Clock class="mr-1 h-3 w-3 animate-pulse" />
-						Processing
+						{progress > 0 ? `${progress}%` : 'Processing'}
 					{:else if status === 'completed'}
 						<CheckCircle2 class="mr-1 h-3 w-3" />
 						Done
 					{:else if status === 'failed'}
 						<AlertCircle class="mr-1 h-3 w-3" />
 						Failed
+					{:else if status === 'pending'}
+						<Clock class="mr-1 h-3 w-3" />
+						Queued
 					{:else}
 						{status}
 					{/if}
 				</Badge>
 			</div>
+
+			<!-- Progress bar overlay for processing tasks -->
+			{#if status === 'processing' && progress > 0}
+				<div class="absolute right-0 bottom-0 left-0 h-1 bg-black/30">
+					<div
+						class="h-full bg-blue-500 transition-all duration-500 ease-out"
+						style="width: {progress}%"
+					></div>
+				</div>
+			{/if}
 
 			<!-- Timestamp badge -->
 			<div class="absolute right-2 bottom-2 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">

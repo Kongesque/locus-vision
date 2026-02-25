@@ -53,16 +53,20 @@ async def init_db():
             INSERT OR IGNORE INTO app_settings (key, value) VALUES ('allow_signup', 'false');
 
             CREATE TABLE IF NOT EXISTS video_tasks (
-                id          TEXT    PRIMARY KEY,
-                filename    TEXT    NOT NULL,
-                status      TEXT    NOT NULL DEFAULT 'pending',
-                created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-                completed_at TEXT   NULL,
-                duration    TEXT    NULL,
-                format      TEXT    NULL,
-                model_name  TEXT    NULL,
-                total_count INTEGER NULL,
-                zone_counts TEXT    NULL
+                id            TEXT    PRIMARY KEY,
+                filename      TEXT    NOT NULL,
+                status        TEXT    NOT NULL DEFAULT 'pending',
+                progress      INTEGER NOT NULL DEFAULT 0,
+                created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+                completed_at  TEXT    NULL,
+                duration      TEXT    NULL,
+                format        TEXT    NULL,
+                model_name    TEXT    NULL,
+                total_count   INTEGER NULL,
+                zone_counts   TEXT    NULL,
+                zones         TEXT    NULL,
+                classes       TEXT    NULL,
+                error_message TEXT    NULL
             );
 
             CREATE TABLE IF NOT EXISTS cameras (
@@ -80,6 +84,24 @@ async def init_db():
             );
         """)
         await db.commit()
+
+        # Migrate existing databases: add new columns if they don't exist
+        try:
+            cursor = await db.execute("PRAGMA table_info(video_tasks)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            migrations = {
+                "progress": "ALTER TABLE video_tasks ADD COLUMN progress INTEGER NOT NULL DEFAULT 0",
+                "zones": "ALTER TABLE video_tasks ADD COLUMN zones TEXT NULL",
+                "classes": "ALTER TABLE video_tasks ADD COLUMN classes TEXT NULL",
+                "error_message": "ALTER TABLE video_tasks ADD COLUMN error_message TEXT NULL",
+            }
+            for col_name, sql in migrations.items():
+                if col_name not in columns:
+                    await db.execute(sql)
+            await db.commit()
+        except Exception as e:
+            print(f"Migration warning: {e}")
+
     finally:
         await db.close()
 

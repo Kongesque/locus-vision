@@ -276,18 +276,28 @@
 		return `${m}:${s.toString().padStart(2, '0')}`;
 	}
 
+	let taskProgress = $state(0);
+
 	async function checkStatus() {
 		if (status === 'ready') return;
 		try {
-			const res = await fetch(`http://localhost:8000/api/video/${taskId}/result`);
-			if (res.status === 200) {
-				videoSrc = `http://localhost:8000/api/video/${taskId}/result`;
-				status = 'ready';
-				stopPolling();
-			} else if (res.status === 202) {
-				status = 'processing';
-			} else {
-				if (status !== 'processing') status = 'loading';
+			const res = await fetch(`http://localhost:8000/api/video/${taskId}/status`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.status === 'completed') {
+					videoSrc = `http://localhost:8000/api/video/${taskId}/result`;
+					status = 'ready';
+					taskProgress = 100;
+					stopPolling();
+				} else if (data.status === 'failed') {
+					status = 'error';
+					stopPolling();
+				} else if (data.status === 'processing') {
+					status = 'processing';
+					taskProgress = data.progress || 0;
+				} else {
+					status = 'processing';
+				}
 			}
 		} catch (e) {
 			console.error('Error checking status', e);
@@ -390,7 +400,15 @@
 							class="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground"
 						>
 							<Loader2 class="h-8 w-8 animate-spin" />
-							<p>Processing video task...</p>
+							<p>Processing video task... {taskProgress > 0 ? `${taskProgress}%` : ''}</p>
+							{#if taskProgress > 0}
+								<div class="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
+									<div
+										class="h-full rounded-full bg-blue-500 transition-all duration-500 ease-out"
+										style="width: {taskProgress}%"
+									></div>
+								</div>
+							{/if}
 							<p class="text-xs opacity-70">
 								This typically takes 10-30 seconds depending on video length.
 							</p>
