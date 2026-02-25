@@ -92,7 +92,18 @@ async def process_video_task(
         fourcc = cv2.VideoWriter_fourcc(*'avc1')
         out = cv2.VideoWriter(output_path, fourcc, new_fps, (width, height))
 
+        # Data collection for exporting raw JSON insights
+        analytical_data = {
+            "task_id": task_id,
+            "filename": input_path.split("/")[-1],
+            "model_name": model_name,
+            "fps": new_fps,
+            "zones": zones,
+            "frames": []
+        }
+
         frame_count = 0
+        timestamp = 0.0
         start_time = time.time()
 
         while cap.isOpened():
@@ -112,8 +123,22 @@ async def process_video_task(
 
             out.write(frame)
 
+            # Store per-frame data
+            timestamp = frame_count / fps
+            analytical_data["frames"].append({
+                "timestamp": round(timestamp, 2),
+                "boxes": result.boxes,
+                "current_total_count": result.total_count,
+                "current_zone_counts": result.zone_counts
+            })
+
         cap.release()
         out.release()
+
+        # Save the analytical data to JSON
+        data_path = os.path.join(CACHE_DIR, f"data_{task_id}.json")
+        with open(data_path, "w") as f:
+            json.dump(analytical_data, f)
 
         # Cleanup input
         if os.path.exists(input_path):
@@ -130,10 +155,12 @@ async def process_video_task(
                 SET status = 'completed', 
                     completed_at = datetime('now'),
                     duration = ?,
-                    format = 'mp4'
+                    format = 'mp4',
+                    total_count = ?,
+                    zone_counts = ?
                 WHERE id = ?
                 """,
-                (duration_str, task_id)
+                (duration_str, result.total_count, json.dumps(result.zone_counts), task_id)
             )
             await db.commit()
         except Exception as e:
@@ -225,3 +252,10 @@ async def get_result(task_id: str):
     if os.path.exists(output_path):
         return FileResponse(output_path, media_type="video/mp4", filename=f"result_{task_id}.mp4")
     return JSONResponse({"status": "pending"}, status_code=202)
+
+@router.get("/{task_id}/data")
+async def get_data(task_id: str):
+    data_path = os.path.join(CACHE_DIR, f"data_{task_id}.json")
+    if os.path.exists(data_path):
+        return FileResponse(data_path, media_type="application/json", filename=f"insights_{task_id}.json")
+    return JSONResponse({"detail": "Raw data not found"}, status_code=404)

@@ -60,7 +60,9 @@ async def init_db():
                 completed_at TEXT   NULL,
                 duration    TEXT    NULL,
                 format      TEXT    NULL,
-                model_name  TEXT    NULL
+                model_name  TEXT    NULL,
+                total_count INTEGER NULL,
+                zone_counts TEXT    NULL
             );
 
             CREATE TABLE IF NOT EXISTS cameras (

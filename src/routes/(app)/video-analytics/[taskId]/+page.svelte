@@ -8,7 +8,7 @@
 	let { data } = $props();
 
 	let taskId = $derived(data.taskId);
-	let task = $derived(data.task);
+	let task = $derived(data.task as any);
 
 	let videoSrc = $state<string | null>(null);
 	let status = $state<'loading' | 'processing' | 'ready' | 'error'>('loading');
@@ -186,7 +186,13 @@
 							detections for every frame, tracked via DeepSort.
 						</div>
 						<div class="mt-2">
-							<Button variant="secondary" size="sm" class="gap-2">
+							<Button
+								variant="secondary"
+								size="sm"
+								class="gap-2"
+								href={`http://localhost:8000/api/video/${taskId}/data`}
+								download
+							>
 								<FileJson class="h-4 w-4" />
 								Export Raw Data (JSON)
 							</Button>
@@ -202,18 +208,35 @@
 							Detected Activity Summary
 						</h3>
 					</div>
-					<div class="flex flex-1 flex-col items-center justify-center p-4">
-						{#if status === 'ready'}
-							<div class="text-center">
+					<div class="flex flex-1 flex-col p-4">
+						{#if status === 'ready' && task}
+							<div class="mb-4 flex flex-col items-center justify-center border-b pb-4">
 								<div class="mb-1 text-sm text-muted-foreground">Total Unique Objects</div>
-								<div class="text-5xl font-bold text-primary">--</div>
-								<div class="mt-2 px-4 text-xs text-balance text-muted-foreground">
-									*Note: Aggregate counts require the database to store zone results. Currently,
-									counts are only burned into the video output.
-								</div>
+								<div class="text-5xl font-bold text-primary">{task.total_count || 0}</div>
 							</div>
+
+							<!-- Render Zone Counts if they exist -->
+							{@const parsedZoneCounts = task.zone_counts ? JSON.parse(task.zone_counts) : null}
+							{#if parsedZoneCounts && Object.keys(parsedZoneCounts).length > 0}
+								<div class="grid w-full grid-cols-2 gap-2">
+									{#each Object.entries(parsedZoneCounts) as [zoneId, count]}
+										<div class="rounded bg-muted/30 p-2 text-center">
+											<div class="truncate text-xs text-muted-foreground" title={zoneId}>
+												{zoneId.length > 8 ? `Zone ${zoneId.slice(0, 4)}` : zoneId}
+											</div>
+											<div class="text-xl font-bold">{count}</div>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<div class="mt-4 text-center text-sm text-muted-foreground">
+									No zones defined for this task.
+								</div>
+							{/if}
 						{:else}
-							<div class="text-center text-sm text-muted-foreground">
+							<div
+								class="flex flex-1 flex-col items-center justify-center text-center text-sm text-muted-foreground"
+							>
 								Waiting for analysis to complete...
 							</div>
 						{/if}

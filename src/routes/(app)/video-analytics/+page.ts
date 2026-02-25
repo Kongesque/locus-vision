@@ -12,6 +12,8 @@ export interface VideoTask {
     duration: string | null;
     format: string | null;
     model_name: string | null;
+    total_count: number | null;
+    zone_counts: string | null;
 }
 
 export const load: PageLoad = async ({ fetch }) => {

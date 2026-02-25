@@ -142,6 +142,8 @@ class VideoTask(BaseModel):
     duration: str | None = None
     format: str | None = None
     model_name: str | None = None
+    total_count: int | None = None
+    zone_counts: str | None = None
 
 
 class CameraCreate(BaseModel):
