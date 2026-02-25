@@ -2,8 +2,8 @@
 	import { page } from '$app/stores';
 	import { AspectRatio } from '$lib/components/ui/aspect-ratio/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ChevronLeft, Loader2, Download, Share2, FileJson } from '@lucide/svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import { ChevronLeft, Loader2, Download, FileJson, Activity } from '@lucide/svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 
 	let { data } = $props();
 
@@ -13,6 +13,18 @@
 	let videoSrc = $state<string | null>(null);
 	let status = $state<'loading' | 'processing' | 'ready' | 'error'>('loading');
 	let pollInterval: NodeJS.Timeout;
+
+	// Video element ref
+	let videoEl = $state<HTMLVideoElement | null>(null);
+
+	// Timeline data
+	let timelineData = $state<{ timestamp: number; count: number }[]>([]);
+	let timelineCanvas = $state<HTMLCanvasElement | null>(null);
+	let hoveredTime = $state<number | null>(null);
+	let hoveredCount = $state<number | null>(null);
+	let currentVideoTime = $state(0);
+	let videoDuration = $state(0);
+	let timelineLoaded = $state(false);
 
 	// Initialize state based on loaded data
 	$effect(() => {
@@ -28,40 +40,263 @@
 		}
 	});
 
-	async function checkStatus() {
-		// If already ready, no need to check, unless we want to handle re-checks?
-		if (status === 'ready') return;
+	// Fetch timeline data when status is ready
+	$effect(() => {
+		if (status === 'ready' && !timelineLoaded) {
+			fetchTimelineData();
+		}
+	});
 
+	// Draw timeline when data or canvas changes
+	$effect(() => {
+		if (timelineCanvas && timelineData.length > 0) {
+			drawTimeline();
+		}
+	});
+
+	// Redraw on video time update to show playhead
+	$effect(() => {
+		if (timelineCanvas && timelineData.length > 0 && currentVideoTime >= 0) {
+			drawTimeline();
+		}
+	});
+
+	async function fetchTimelineData() {
+		try {
+			const res = await fetch(`http://localhost:8000/api/video/${taskId}/data`);
+			if (!res.ok) return;
+			const json = await res.json();
+			if (json.frames && Array.isArray(json.frames)) {
+				timelineData = json.frames.map((f: any) => ({
+					timestamp: f.timestamp,
+					count: f.current_total_count ?? 0
+				}));
+				timelineLoaded = true;
+			}
+		} catch (e) {
+			console.error('Failed to fetch timeline data', e);
+		}
+	}
+
+	function drawTimeline() {
+		if (!timelineCanvas) return;
+		const canvas = timelineCanvas;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		// Set canvas resolution to match display size
+		const rect = canvas.getBoundingClientRect();
+		const dpr = window.devicePixelRatio || 1;
+		canvas.width = rect.width * dpr;
+		canvas.height = rect.height * dpr;
+		ctx.scale(dpr, dpr);
+
+		const w = rect.width;
+		const h = rect.height;
+		const padding = { top: 20, right: 16, bottom: 28, left: 40 };
+		const chartW = w - padding.left - padding.right;
+		const chartH = h - padding.top - padding.bottom;
+
+		// Clear
+		ctx.clearRect(0, 0, w, h);
+
+		if (timelineData.length === 0) return;
+
+		const maxCount = Math.max(...timelineData.map((d) => d.count), 1);
+		const maxTime = timelineData[timelineData.length - 1].timestamp || 1;
+
+		// Draw grid lines
+		ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+		ctx.lineWidth = 1;
+		const gridLines = 4;
+		for (let i = 0; i <= gridLines; i++) {
+			const y = padding.top + (chartH / gridLines) * i;
+			ctx.beginPath();
+			ctx.moveTo(padding.left, y);
+			ctx.lineTo(w - padding.right, y);
+			ctx.stroke();
+		}
+
+		// Y-axis labels
+		ctx.fillStyle = 'rgba(255,255,255,0.4)';
+		ctx.font = '10px system-ui, sans-serif';
+		ctx.textAlign = 'right';
+		ctx.textBaseline = 'middle';
+		for (let i = 0; i <= gridLines; i++) {
+			const val = Math.round(maxCount - (maxCount / gridLines) * i);
+			const y = padding.top + (chartH / gridLines) * i;
+			ctx.fillText(String(val), padding.left - 6, y);
+		}
+
+		// X-axis labels
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		const xLabels = 6;
+		for (let i = 0; i <= xLabels; i++) {
+			const t = (maxTime / xLabels) * i;
+			const x = padding.left + (chartW / xLabels) * i;
+			const mins = Math.floor(t / 60);
+			const secs = Math.floor(t % 60);
+			ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, x, h - padding.bottom + 8);
+		}
+
+		// Draw area fill
+		const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+		gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
+		gradient.addColorStop(1, 'rgba(59, 130, 246, 0.02)');
+
+		ctx.beginPath();
+		ctx.moveTo(padding.left, padding.top + chartH);
+		for (let i = 0; i < timelineData.length; i++) {
+			const x = padding.left + (timelineData[i].timestamp / maxTime) * chartW;
+			const y = padding.top + chartH - (timelineData[i].count / maxCount) * chartH;
+			if (i === 0) ctx.lineTo(x, y);
+			else ctx.lineTo(x, y);
+		}
+		ctx.lineTo(
+			padding.left + (timelineData[timelineData.length - 1].timestamp / maxTime) * chartW,
+			padding.top + chartH
+		);
+		ctx.closePath();
+		ctx.fillStyle = gradient;
+		ctx.fill();
+
+		// Draw line
+		ctx.beginPath();
+		ctx.strokeStyle = 'rgba(59, 130, 246, 0.9)';
+		ctx.lineWidth = 2;
+		ctx.lineJoin = 'round';
+		for (let i = 0; i < timelineData.length; i++) {
+			const x = padding.left + (timelineData[i].timestamp / maxTime) * chartW;
+			const y = padding.top + chartH - (timelineData[i].count / maxCount) * chartH;
+			if (i === 0) ctx.moveTo(x, y);
+			else ctx.lineTo(x, y);
+		}
+		ctx.stroke();
+
+		// Draw playhead
+		if (videoDuration > 0) {
+			const playX = padding.left + (currentVideoTime / maxTime) * chartW;
+			if (playX >= padding.left && playX <= padding.left + chartW) {
+				ctx.beginPath();
+				ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+				ctx.lineWidth = 1.5;
+				ctx.setLineDash([4, 3]);
+				ctx.moveTo(playX, padding.top);
+				ctx.lineTo(playX, padding.top + chartH);
+				ctx.stroke();
+				ctx.setLineDash([]);
+
+				// Small triangle at top
+				ctx.fillStyle = 'rgba(255,255,255,0.8)';
+				ctx.beginPath();
+				ctx.moveTo(playX - 4, padding.top);
+				ctx.lineTo(playX + 4, padding.top);
+				ctx.lineTo(playX, padding.top + 6);
+				ctx.closePath();
+				ctx.fill();
+			}
+		}
+
+		// Draw hover indicator
+		if (hoveredTime !== null) {
+			const hoverX = padding.left + (hoveredTime / maxTime) * chartW;
+			ctx.beginPath();
+			ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+			ctx.lineWidth = 1;
+			ctx.setLineDash([2, 2]);
+			ctx.moveTo(hoverX, padding.top);
+			ctx.lineTo(hoverX, padding.top + chartH);
+			ctx.stroke();
+			ctx.setLineDash([]);
+
+			// Dot at the data point
+			if (hoveredCount !== null) {
+				const dotY = padding.top + chartH - (hoveredCount / maxCount) * chartH;
+				ctx.beginPath();
+				ctx.arc(hoverX, dotY, 4, 0, Math.PI * 2);
+				ctx.fillStyle = 'rgb(59, 130, 246)';
+				ctx.fill();
+				ctx.strokeStyle = 'white';
+				ctx.lineWidth = 2;
+				ctx.stroke();
+			}
+		}
+	}
+
+	function handleTimelineClick(e: MouseEvent) {
+		if (!timelineCanvas || !videoEl || timelineData.length === 0) return;
+		const rect = timelineCanvas.getBoundingClientRect();
+		const padding = { left: 40, right: 16 };
+		const chartW = rect.width - padding.left - padding.right;
+		const x = e.clientX - rect.left - padding.left;
+		if (x < 0 || x > chartW) return;
+
+		const maxTime = timelineData[timelineData.length - 1].timestamp || 1;
+		const targetTime = (x / chartW) * maxTime;
+		videoEl.currentTime = targetTime;
+	}
+
+	function handleTimelineHover(e: MouseEvent) {
+		if (!timelineCanvas || timelineData.length === 0) return;
+		const rect = timelineCanvas.getBoundingClientRect();
+		const padding = { left: 40, right: 16 };
+		const chartW = rect.width - padding.left - padding.right;
+		const x = e.clientX - rect.left - padding.left;
+		if (x < 0 || x > chartW) {
+			hoveredTime = null;
+			hoveredCount = null;
+			return;
+		}
+
+		const maxTime = timelineData[timelineData.length - 1].timestamp || 1;
+		hoveredTime = (x / chartW) * maxTime;
+
+		// Find nearest data point
+		let nearest = timelineData[0];
+		let minDist = Infinity;
+		for (const d of timelineData) {
+			const dist = Math.abs(d.timestamp - hoveredTime);
+			if (dist < minDist) {
+				minDist = dist;
+				nearest = d;
+			}
+		}
+		hoveredCount = nearest.count;
+	}
+
+	function handleTimelineLeave() {
+		hoveredTime = null;
+		hoveredCount = null;
+	}
+
+	function formatTime(seconds: number): string {
+		const m = Math.floor(seconds / 60);
+		const s = Math.floor(seconds % 60);
+		return `${m}:${s.toString().padStart(2, '0')}`;
+	}
+
+	async function checkStatus() {
+		if (status === 'ready') return;
 		try {
 			const res = await fetch(`http://localhost:8000/api/video/${taskId}/result`);
-
 			if (res.status === 200) {
-				// Video is ready
 				videoSrc = `http://localhost:8000/api/video/${taskId}/result`;
 				status = 'ready';
 				stopPolling();
 			} else if (res.status === 202) {
-				// Still processing
 				status = 'processing';
 			} else {
-				// 404 or other
-				// If we know it failed from metadata, we can show error.
-				// Or if it's 404 but we expect it to be processing, maybe it takes time to appear?
-				// For now, if 404, valid task ID -> processing or queued (unless very old).
-				// But `result` endpoint returns 202 if pending/processing/not found but valid?
-				// Actually my backend returns 202 if pending. 404 if weird?
-				// Let's assume 202.
 				if (status !== 'processing') status = 'loading';
 			}
 		} catch (e) {
 			console.error('Error checking status', e);
-			// Don't immediately set error on network blip
 		}
 	}
 
 	function startPolling() {
 		if (status === 'ready' || status === 'error') return;
-		checkStatus(); // Initial check
+		checkStatus();
 		pollInterval = setInterval(checkStatus, 2000);
 	}
 
@@ -135,6 +370,7 @@
 					{#if status === 'ready' && videoSrc}
 						<!-- svelte-ignore a11y_media_has_caption -->
 						<video
+							bind:this={videoEl}
 							src={videoSrc}
 							class="h-full w-full object-contain"
 							controls
@@ -142,6 +378,12 @@
 							loop
 							playsinline
 							crossorigin="anonymous"
+							ontimeupdate={() => {
+								if (videoEl) currentVideoTime = videoEl.currentTime;
+							}}
+							onloadedmetadata={() => {
+								if (videoEl) videoDuration = videoEl.duration;
+							}}
 						></video>
 					{:else if status === 'processing' || status === 'loading'}
 						<div
@@ -156,6 +398,39 @@
 					{/if}
 				</AspectRatio>
 			</div>
+
+			<!-- Interactive Activity Timeline -->
+			{#if status === 'ready' && timelineData.length > 0}
+				<div class="overflow-hidden rounded-lg border bg-card shadow-sm">
+					<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
+						<div class="flex items-center gap-2">
+							<Activity class="h-4 w-4 text-blue-400" />
+							<h3 class="text-sm font-semibold tracking-tight text-muted-foreground">
+								Activity Timeline
+							</h3>
+						</div>
+						<div class="flex items-center gap-3 text-xs text-muted-foreground">
+							{#if hoveredTime !== null}
+								<span class="font-mono text-blue-400">
+									{formatTime(hoveredTime)} · {hoveredCount} objects
+								</span>
+							{:else}
+								<span>Click to jump · Hover for details</span>
+							{/if}
+						</div>
+					</div>
+					<div class="p-3">
+						<canvas
+							bind:this={timelineCanvas}
+							class="h-[120px] w-full cursor-crosshair rounded"
+							onclick={handleTimelineClick}
+							onmousemove={handleTimelineHover}
+							onmouseleave={handleTimelineLeave}
+							aria-label="Activity timeline chart - click to jump to time"
+						></canvas>
+					</div>
+				</div>
+			{/if}
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<div class="grid grid-cols-2 gap-4 md:col-span-2">
@@ -172,7 +447,6 @@
 						</div>
 					</div>
 
-					<!-- Add a timeline scrub context -->
 					<div
 						class="col-span-2 flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
 					>
