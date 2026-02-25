@@ -14,6 +14,24 @@
 	let errorMsg = $state<string | null>(null);
 	let zones = $state<any[]>([]);
 	let trackCount = $state(0);
+	let zoneCounts = $state<Record<string, number>>({});
+
+	// Activity Log to show history of detections entering zones
+	let activityLogs = $state<{ time: string; message: string; id: string }[]>([]);
+
+	function addActivityLog(message: string) {
+		const now = new Date();
+		const timeStr = now.toLocaleTimeString([], {
+			hour12: false,
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit'
+		});
+		activityLogs = [
+			{ time: timeStr, message, id: Math.random().toString() },
+			...activityLogs
+		].slice(0, 50); // Keep last 50
+	}
 
 	function isHlsUrl(src: string): boolean {
 		return src.includes('.m3u8') || src.includes('manifest') || src.includes('hls');
@@ -189,7 +207,24 @@
 				}
 				// Use the backend's zone-aware unique count
 				if (data.count !== undefined) {
+					if (trackCount !== data.count && data.count > 0) {
+						// Only log if it's an overall new object (if we don't have zone specifics)
+						// But wait, it's better to log zone-specific increases!
+					}
 					trackCount = data.count;
+				}
+				if (data.zone_counts) {
+					// Check for increases to trigger activity logs
+					for (const [zId, newCount] of Object.entries(data.zone_counts)) {
+						const oldCount = zoneCounts[zId] || 0;
+						if ((newCount as number) > oldCount) {
+							// Find the zone name for better UI
+							const zoneName = zones.find((z) => z.id === zId)?.id || zId;
+							const shortName = zoneName.length > 8 ? `Zone ${zoneName.slice(0, 4)}` : zoneName;
+							addActivityLog(`Occupancy increased in ${shortName}`);
+						}
+					}
+					zoneCounts = data.zone_counts;
 				}
 			} catch (e) {
 				console.error('WS parse error', e);
@@ -340,18 +375,62 @@
 				</AspectRatio>
 			</div>
 
-			<div class="grid grid-cols-3 gap-4">
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
-					<div class="mt-1 text-lg tracking-tight">{modelName} (Live)</div>
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+				<div class="grid grid-cols-2 gap-4 sm:grid-cols-4 md:col-span-3">
+					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+						<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
+						<div class="mt-1 text-lg font-medium tracking-tight">{modelName} (Live)</div>
+					</div>
+					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+						<div class="text-sm font-semibold text-muted-foreground">Total Unique Objects</div>
+						<div class="mt-1 text-3xl font-bold tracking-tight text-primary">{trackCount}</div>
+					</div>
+					<!-- Render a metric card for each active zone -->
+					{#each zones as zone}
+						<div
+							class="relative overflow-hidden rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
+						>
+							<div
+								class="absolute top-0 bottom-0 left-0 w-1"
+								style="background-color: {zone.color || '#00ff00'}"
+							></div>
+							<div class="truncate pl-2 text-sm font-semibold text-muted-foreground">
+								{zone.id.length > 8 ? `Zone ${zone.id.slice(0, 4)}` : zone.id}
+							</div>
+							<div class="mt-1 pl-2 text-3xl font-bold tracking-tight">
+								{zoneCounts[zone.id] || 0}
+							</div>
+						</div>
+					{/each}
 				</div>
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Active Zones</div>
-					<div class="mt-1 text-lg tracking-tight">{zones.length}</div>
-				</div>
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Objects Tracked</div>
-					<div class="mt-1 text-lg tracking-tight">{trackCount}</div>
+
+				<!-- Activity Sidebar -->
+				<div
+					class="flex h-64 flex-col overflow-hidden rounded-lg border bg-card shadow-sm md:col-span-1 md:h-auto"
+				>
+					<div class="border-b bg-muted/30 p-3">
+						<h3 class="text-sm font-bold tracking-tight">Recent Activity</h3>
+					</div>
+					<div class="flex-1 overflow-y-auto p-0">
+						{#if activityLogs.length === 0}
+							<div
+								class="flex h-full items-center justify-center p-4 text-center text-sm text-muted-foreground"
+							>
+								Waiting for events...
+							</div>
+						{:else}
+							<ul class="divide-y divide-border/50">
+								{#each activityLogs as log (log.id)}
+									<li class="p-3 text-sm transition-colors hover:bg-muted/30">
+										<div class="flex flex-col gap-1">
+											<span class="text-xs font-medium text-muted-foreground">{log.time}</span>
+											<span>{log.message}</span>
+										</div>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>

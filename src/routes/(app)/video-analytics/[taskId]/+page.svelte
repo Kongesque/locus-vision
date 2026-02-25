@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { AspectRatio } from '$lib/components/ui/aspect-ratio/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ChevronLeft, Loader2 } from '@lucide/svelte';
+	import { ChevronLeft, Loader2, Download, Share2, FileJson } from '@lucide/svelte';
 	import { onMount, onDestroy } from 'svelte';
 
 	let { data } = $props();
@@ -93,24 +93,36 @@
 			</h1>
 		</div>
 		<div class="flex items-center gap-2">
-			<span class="relative flex h-3 w-3">
-				{#if status === 'processing' || status === 'loading'}
-					<span
-						class="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"
-					></span>
-					<span class="relative inline-flex h-3 w-3 rounded-full bg-yellow-500"></span>
-				{:else if status === 'ready'}
-					<span
-						class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
-					></span>
-					<span class="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
-				{:else}
-					<span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
-				{/if}
-			</span>
-			<span class="text-sm font-medium text-muted-foreground capitalize">
-				{status === 'loading' ? 'connecting' : status}
-			</span>
+			{#if status === 'ready'}
+				<Button variant="outline" size="sm" class="gap-2">
+					<Share2 class="h-4 w-4" />
+					Share
+				</Button>
+				<Button size="sm" class="gap-2" href={videoSrc} download>
+					<Download class="h-4 w-4" />
+					Export Video
+				</Button>
+			{/if}
+			<div class="ml-4 flex items-center gap-2">
+				<span class="relative flex h-3 w-3">
+					{#if status === 'processing' || status === 'loading'}
+						<span
+							class="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"
+						></span>
+						<span class="relative inline-flex h-3 w-3 rounded-full bg-yellow-500"></span>
+					{:else if status === 'ready'}
+						<span
+							class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
+						></span>
+						<span class="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+					{:else}
+						<span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
+					{/if}
+				</span>
+				<span class="text-sm font-medium text-muted-foreground capitalize">
+					{status === 'loading' ? 'connecting' : status}
+				</span>
+			</div>
 		</div>
 	</div>
 
@@ -149,20 +161,63 @@
 				</AspectRatio>
 			</div>
 
-			<div class="grid grid-cols-3 gap-4">
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
-					<div class="mt-1 text-lg tracking-tight">
-						{task ? task.model_name || 'yolo11n' : 'Loading...'}
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+				<div class="grid grid-cols-2 gap-4 md:col-span-2">
+					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+						<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
+						<div class="mt-1 text-2xl font-bold tracking-tight">
+							{task ? task.model_name || 'yolo11n' : 'Loading...'}
+						</div>
+					</div>
+					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+						<div class="text-sm font-semibold text-muted-foreground">Duration Analyzed</div>
+						<div class="mt-1 text-2xl font-bold tracking-tight">
+							{task ? task.duration || '--:--' : '--:--'}
+						</div>
+					</div>
+
+					<!-- Add a timeline scrub context -->
+					<div
+						class="col-span-2 flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
+					>
+						<div class="text-sm font-semibold text-muted-foreground">Analysis Context</div>
+						<div class="text-sm">
+							Processed using high-accuracy tracking at 12fps. Export data to view raw JSON
+							detections for every frame, tracked via DeepSort.
+						</div>
+						<div class="mt-2">
+							<Button variant="secondary" size="sm" class="gap-2">
+								<FileJson class="h-4 w-4" />
+								Export Raw Data (JSON)
+							</Button>
+						</div>
 					</div>
 				</div>
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Duration</div>
-					<div class="mt-1 text-lg tracking-tight">{task ? task.duration || '--:--' : '--:--'}</div>
-				</div>
-				<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-					<div class="text-sm font-semibold text-muted-foreground">Output Format</div>
-					<div class="mt-1 text-lg tracking-tight">{task ? task.format || 'mp4' : 'mp4'}</div>
+
+				<div
+					class="flex min-h-[200px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm"
+				>
+					<div class="border-b bg-muted/30 p-4">
+						<h3 class="text-sm font-semibold tracking-tight text-muted-foreground">
+							Detected Activity Summary
+						</h3>
+					</div>
+					<div class="flex flex-1 flex-col items-center justify-center p-4">
+						{#if status === 'ready'}
+							<div class="text-center">
+								<div class="mb-1 text-sm text-muted-foreground">Total Unique Objects</div>
+								<div class="text-5xl font-bold text-primary">--</div>
+								<div class="mt-2 px-4 text-xs text-balance text-muted-foreground">
+									*Note: Aggregate counts require the database to store zone results. Currently,
+									counts are only burned into the video output.
+								</div>
+							</div>
+						{:else}
+							<div class="text-center text-sm text-muted-foreground">
+								Waiting for analysis to complete...
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>
