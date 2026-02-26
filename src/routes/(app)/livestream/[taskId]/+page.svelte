@@ -200,8 +200,13 @@
 				const raw = typeof event.data === 'string' ? event.data : '';
 				const data = JSON.parse(raw);
 				if (data.resolution) videoRes = data.resolution;
+
+				// Re-query in case it changed between webcam/rtsp
+				videoEl = node.parentElement?.querySelector('video') ?? null;
+				let currentImgEl = node.parentElement?.querySelector('img') ?? null;
+
 				if (data.boxes) {
-					drawOverlay(node, data.boxes, videoRes);
+					drawOverlay(node, videoEl || currentImgEl, data.boxes, videoRes);
 				}
 				// Use the backend's zone-aware unique count
 				if (data.count !== undefined) {
@@ -242,6 +247,7 @@
 
 	function drawOverlay(
 		canvas: HTMLCanvasElement,
+		videoEl: HTMLVideoElement | HTMLImageElement | null,
 		boxes: any[],
 		videoRes: { w: number; h: number }
 	) {
@@ -250,34 +256,33 @@
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		// The video is rendered using CSS `object-contain`
-		// Calculate actual rendered size and position to handle letterboxing/pillarboxing
-		const containerW = canvas.width;
-		const containerH = canvas.height;
+		if (!videoRes || videoRes.w === 0 || videoRes.h === 0 || !videoEl) return;
 
-		if (!videoRes || videoRes.w === 0 || videoRes.h === 0) return;
+		// videoEl natively reports its actual visual dimensions on-screen after object-contain!
+		const renderW = videoEl.clientWidth;
+		const renderH = videoEl.clientHeight;
 
-		const videoAspect = videoRes.w / videoRes.h;
-		const containerAspect = containerW / containerH;
+		// The canvas needs to sit exactly on top of the video Element's actual footprint.
+		const offsetX = (canvas.width - renderW) / 2;
+		const offsetY = (canvas.height - renderH) / 2;
 
-		let renderW, renderH, offsetX, offsetY;
-
-		if (videoAspect > containerAspect) {
-			// Video is wider than container, bounds to width (letterboxed)
-			renderW = containerW;
-			renderH = containerW / videoAspect;
-			offsetX = 0;
-			offsetY = (containerH - renderH) / 2;
-		} else {
-			// Video is taller than container, bounds to height (pillarboxed)
-			renderW = containerH * videoAspect;
-			renderH = containerH;
-			offsetX = (containerW - renderW) / 2;
-			offsetY = 0;
+		let videoNaturalW = renderW;
+		let videoNaturalH = renderH;
+		if (videoEl instanceof HTMLVideoElement) {
+			videoNaturalW = videoEl.videoWidth;
+			videoNaturalH = videoEl.videoHeight;
+		} else if (videoEl instanceof HTMLImageElement) {
+			videoNaturalW = videoEl.naturalWidth;
+			videoNaturalH = videoEl.naturalHeight;
 		}
 
+		// scaleX/Y maps the backend YOLO downscaled tracking resolution (e.g. 1280px) -> Screen
 		const scaleX = renderW / videoRes.w;
 		const scaleY = renderH / videoRes.h;
+
+		// zoneScaleX/Y maps the original high-res camera size (which was used during Zone creation) -> Screen
+		const zoneScaleX = videoNaturalW ? renderW / videoNaturalW : scaleX;
+		const zoneScaleY = videoNaturalH ? renderH / videoNaturalH : scaleY;
 
 		// Draw zones
 		zones.forEach((zone) => {
@@ -289,10 +294,13 @@
 			ctx.setLineDash([5, 5]);
 
 			const firstPt = zone.points[0];
-			ctx.moveTo(offsetX + firstPt.x * scaleX, offsetY + firstPt.y * scaleY);
+			ctx.moveTo(offsetX + firstPt.x * zoneScaleX, offsetY + firstPt.y * zoneScaleY);
 
 			for (let i = 1; i < zone.points.length; i++) {
-				ctx.lineTo(offsetX + zone.points[i].x * scaleX, offsetY + zone.points[i].y * scaleY);
+				ctx.lineTo(
+					offsetX + zone.points[i].x * zoneScaleX,
+					offsetY + zone.points[i].y * zoneScaleY
+				);
 			}
 			if (zone.type === 'polygon') ctx.closePath();
 			ctx.stroke();
