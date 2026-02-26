@@ -250,8 +250,34 @@
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		const scaleX = canvas.width / videoRes.w;
-		const scaleY = canvas.height / videoRes.h;
+		// The video is rendered using CSS `object-contain`
+		// Calculate actual rendered size and position to handle letterboxing/pillarboxing
+		const containerW = canvas.width;
+		const containerH = canvas.height;
+
+		if (!videoRes || videoRes.w === 0 || videoRes.h === 0) return;
+
+		const videoAspect = videoRes.w / videoRes.h;
+		const containerAspect = containerW / containerH;
+
+		let renderW, renderH, offsetX, offsetY;
+
+		if (videoAspect > containerAspect) {
+			// Video is wider than container, bounds to width (letterboxed)
+			renderW = containerW;
+			renderH = containerW / videoAspect;
+			offsetX = 0;
+			offsetY = (containerH - renderH) / 2;
+		} else {
+			// Video is taller than container, bounds to height (pillarboxed)
+			renderW = containerH * videoAspect;
+			renderH = containerH;
+			offsetX = (containerW - renderW) / 2;
+			offsetY = 0;
+		}
+
+		const scaleX = renderW / videoRes.w;
+		const scaleY = renderH / videoRes.h;
 
 		// Draw zones
 		zones.forEach((zone) => {
@@ -263,10 +289,10 @@
 			ctx.setLineDash([5, 5]);
 
 			const firstPt = zone.points[0];
-			ctx.moveTo(firstPt.x * scaleX, firstPt.y * scaleY);
+			ctx.moveTo(offsetX + firstPt.x * scaleX, offsetY + firstPt.y * scaleY);
 
 			for (let i = 1; i < zone.points.length; i++) {
-				ctx.lineTo(zone.points[i].x * scaleX, zone.points[i].y * scaleY);
+				ctx.lineTo(offsetX + zone.points[i].x * scaleX, offsetY + zone.points[i].y * scaleY);
 			}
 			if (zone.type === 'polygon') ctx.closePath();
 			ctx.stroke();
@@ -287,8 +313,8 @@
 			ctx.strokeStyle = color;
 			ctx.lineWidth = 2;
 
-			const scaledX = box.x * scaleX;
-			const scaledY = box.y * scaleY;
+			const scaledX = offsetX + box.x * scaleX;
+			const scaledY = offsetY + box.y * scaleY;
 			const scaledW = box.w * scaleX;
 			const scaledH = box.h * scaleY;
 
