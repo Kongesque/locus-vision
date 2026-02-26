@@ -138,6 +138,11 @@ class AnalyticsEngine:
             ):
                 cls_idx = int(cls_idx)
                 
+                # Master Global Filter: If the user explicitly restricted the overarching camera classes, 
+                # ignore any detection that doesn't match, regardless of zone configurations.
+                if self.full_frame_class_ids and cls_idx not in self.full_frame_class_ids:
+                    continue
+                
                 # Scale the YOLO boxes back up to the original high-res camera dimensions
                 # before testing against `zone.poly` (which was drawn on the high-res frame).
                 inv_scale = 1.0 / scale
@@ -161,26 +166,6 @@ class AnalyticsEngine:
                         if zone.classes and cls_idx not in zone.classes:
                             continue
                         
-                        # We need to scale the original high-res zone definition to the current processing frame size.
-                        # The tracking `center` and `track` history are in `w` and `h` space.
-                        # We don't save the original camera resolution in the engine, so we scale it dynamically based on the max extents or we can assume the frontend scales it.
-                        # Wait, the frontend sends zones as absolute points relative to the original video frame.
-                        # Since we don't have the original resolution here, it's actually much simpler:
-                        # The frame passed to `process_frame` in `IpCameraWorker` is downscaled!
-                        # We must scale the `track` history UP to the original coordinates, OR scale the zones DOWN.
-                        # Without knowing original width, we'll let `IpCameraWorker` pass the scale factor or pass the original resolution.
-                        
-                        # Let's scale the track center UP to absolute coordinates so it can be compared to the unmodified `zone.poly`.
-                        # But wait, we don't know the original resolution inside `process_frame` unless we calculate it.
-                        
-                        # ACTUALLY, in `CameraWorker`, we resize using `scale = MAX_WIDTH / w`. 
-                        # This means tracking coordinates are multiplied by `scale` compared to the original frame.
-                        # So original = tracking / scale.
-                        # Let's modify the tracking coordinates for math, assuming the Engine can receive the scale_factor.
-                        
-                        # Let's look at `IpCameraWorker._run`. It rescales. It would be better to scale `zone.poly` ONCE in `set_zones` if we know the scale.
-                        # Since we don't, we can temporarily scale `center` and `track` inside this loop if it's the simplest fix. 
-                        # Wait, the `result.resolution` is the *downscaled* resolution. Let's fix this in `IpCameraWorker._run` instead, which knows the scale!
                         if zone.zone_type == "polygon":
                             dist = cv2.pointPolygonTest(zone.poly, center, False)
                             if dist >= 0:
@@ -212,10 +197,9 @@ class AnalyticsEngine:
                                         self.zone_crossed_objects[zone.zone_id].add(int(track_id))
                                         break
                 else:
-                    # No zones defined — count everything matching full-frame filter
-                    if not self.full_frame_class_ids or cls_idx in self.full_frame_class_ids:
-                        if track_id not in self.crossed_objects:
-                            self.crossed_objects[track_id] = True
+                    # No zones defined — count everything
+                    if track_id not in self.crossed_objects:
+                        self.crossed_objects[track_id] = True
 
                 boxes_data.append({
                     "id": int(track_id),
@@ -353,7 +337,11 @@ class AnalyticsEngine:
 
     def _compute_required_classes(self) -> list[int] | None:
         """Collect all class IDs needed across zones + full-frame filter."""
-        required = set(self.full_frame_class_ids)
+        # If a master global filter is set, it restricts YOLO to ONLY tracking those classes
+        if self.full_frame_class_ids:
+            return self.full_frame_class_ids
+            
+        required = set()
         for zone in self.parsed_zones:
             if not zone.classes:
                 return None  # Empty zone classes = track everything

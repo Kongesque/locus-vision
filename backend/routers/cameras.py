@@ -137,124 +137,30 @@ async def preview_stream(body: dict):
 @router.get("/stream/{camera_id}")
 async def stream_camera(camera_id: str):
     """
-    Optimized MJPEG live stream — Frigate-style threaded frame grabber.
-
-    Key optimizations vs naive MJPEG:
-    1. Dedicated reader thread: always grabs the latest frame, discards stale buffer
-    2. grab()/retrieve() pattern: drains OpenCV's internal 5-frame buffer
-    3. Downscale to 720p max: reduces JPEG encode time + bandwidth
-    4. Frame-ready signaling: no busy-waiting or unnecessary CPU
+    Live MJPEG stream providing annotated frames from the backend worker.
     """
-    import cv2
-    import threading
+    from services.camera_worker import camera_manager
     from fastapi.responses import StreamingResponse
-
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT url, type, device_id FROM cameras WHERE id = ?", (camera_id,))
-        row = await cursor.fetchone()
-    finally:
-        await db.close()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Camera not found")
-
-    if row["type"] == "webcam":
-        raise HTTPException(status_code=400, detail="Webcam streams use browser getUserMedia")
-
-    url = row["url"]
-    if not url:
-        raise HTTPException(status_code=422, detail="No stream URL configured")
-
-    # ── Threaded frame grabber (Frigate-style) ──
-    # OpenCV's VideoCapture has an internal buffer of ~5 frames.
-    # If we read() in the generator, we always get the OLDEST buffered frame = lag.
-    # Solution: a background thread continuously drains the buffer, keeping only the latest.
-
-    class FrameGrabber:
-        def __init__(self, src):
-            self.cap = cv2.VideoCapture(src)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.latest_frame = None
-            self.lock = threading.Lock()
-            self.running = True
-            self.frame_ready = threading.Event()
-            self.thread = threading.Thread(target=self._grab_loop, daemon=True)
-            self.thread.start()
-
-        def _grab_loop(self):
-            """Continuously drain the buffer — only keep the latest frame."""
-            while self.running:
-                if not self.cap.isOpened():
-                    break
-                # grab() is faster than read() — it just advances the buffer
-                # without decoding. We only retrieve() on the LAST grab.
-                grabbed = self.cap.grab()
-                if not grabbed:
-                    time.sleep(0.01)
-                    continue
-                ret, frame = self.cap.retrieve()
-                if ret and frame is not None:
-                    with self.lock:
-                        self.latest_frame = frame
-                    self.frame_ready.set()
-
-        def get_frame(self):
-            """Get the most recent frame (never stale)."""
-            self.frame_ready.wait(timeout=2.0)
-            with self.lock:
-                frame = self.latest_frame
-            self.frame_ready.clear()
-            return frame
-
-        def stop(self):
-            self.running = False
-            self.thread.join(timeout=2)
-            self.cap.release()
-
-    grabber = FrameGrabber(url)
-
-    if not grabber.cap.isOpened():
-        grabber.stop()
-        raise HTTPException(status_code=422, detail="Could not connect to stream")
-
-    TARGET_FPS = 24
-    frame_interval = 1.0 / TARGET_FPS
-    JPEG_QUALITY = 75
-    MAX_WIDTH = 1280  # Downscale to 720p max for bandwidth
+    
+    worker = camera_manager._workers.get(camera_id)
+    if not worker or not worker.is_running:
+        raise HTTPException(status_code=404, detail="Camera tracking worker not running")
 
     def generate_frames():
-        try:
-            while grabber.running:
-                t0 = time.time()
-                frame = grabber.get_frame()
-                if frame is None:
+        while worker.is_running:
+            frame_bytes = worker.get_annotated_frame()
+            if frame_bytes is None:
+                # Timed out waiting for frame or worker stopped
+                if not worker.is_running:
                     break
-
-                # Downscale if too large
-                h, w = frame.shape[:2]
-                if w > MAX_WIDTH:
-                    scale = MAX_WIDTH / w
-                    frame = cv2.resize(frame, (MAX_WIDTH, int(h * scale)), interpolation=cv2.INTER_AREA)
-
-                _, buffer = cv2.imencode(
-                    '.jpg', frame,
-                    [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]
-                )
-                frame_bytes = buffer.tobytes()
-
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n"
-                    b"Content-Length: " + str(len(frame_bytes)).encode() + b"\r\n"
-                    b"\r\n" + frame_bytes + b"\r\n"
-                )
-
-                elapsed = time.time() - t0
-                if elapsed < frame_interval:
-                    time.sleep(frame_interval - elapsed)
-        finally:
-            grabber.stop()
+                continue
+            
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: " + str(len(frame_bytes)).encode() + b"\r\n"
+                b"\r\n" + frame_bytes + b"\r\n"
+            )
 
     return StreamingResponse(
         generate_frames(),

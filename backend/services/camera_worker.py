@@ -27,12 +27,13 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 _camera_engines: dict[str, AnalyticsEngine] = {}
 
 
-def get_camera_engine(camera_id: str, model_name: str = "yolo11n", zones: list = None) -> AnalyticsEngine:
+def get_camera_engine(camera_id: str, model_name: str = "yolo11n", zones: list = None, full_frame_classes: list = None) -> AnalyticsEngine:
     """Get or create an AnalyticsEngine for a specific camera."""
     if camera_id not in _camera_engines:
         _camera_engines[camera_id] = AnalyticsEngine(
             model_name=model_name,
             zones=zones,
+            full_frame_classes=full_frame_classes,
         )
     return _camera_engines[camera_id]
 
@@ -78,13 +79,19 @@ def _dict_factory(cursor, row):
 class IpCameraWorker:
     """
     A background thread that reads from an IP Camera URL, runs YOLO with
-    zone-aware counting, and pushes results via WebSocket.
+    zone-aware counting, burns annotations into the frame, and provides
+    a unified MJPEG stream for the frontend, eliminating latency and sync issues.
     """
     def __init__(self, camera_id: str, loop: asyncio.AbstractEventLoop):
         self.camera_id = camera_id
         self.loop = loop
         self.is_running = False
         self._thread = None
+        
+        # Stream sharing state
+        self.latest_frame_bytes: bytes | None = None
+        self.frame_lock = threading.Lock()
+        self.frame_ready = threading.Event()
 
     def start(self):
         if not self.is_running:
@@ -96,6 +103,14 @@ class IpCameraWorker:
         self.is_running = False
         if self._thread:
             self._thread.join(timeout=2)
+            
+    def get_annotated_frame(self) -> bytes | None:
+        """Called by the FastAPI generator to stream the latest annotated JPEG."""
+        self.frame_ready.wait(timeout=2.0)
+        with self.frame_lock:
+            frame_bytes = self.latest_frame_bytes
+        self.frame_ready.clear()
+        return frame_bytes
 
     def _broadcast(self, msg: str):
         conns = active_connections.get(self.camera_id, [])
@@ -132,11 +147,15 @@ class IpCameraWorker:
             self.is_running = False
             return
 
-        # Parse zones from DB
+        # Parse zones and classes from DB
         zones = json.loads(cam.get("zones", "[]")) if isinstance(cam.get("zones"), str) else cam.get("zones", [])
+        
+        classes_raw = cam.get("classes", "[]")
+        full_frame_classes = json.loads(classes_raw) if isinstance(classes_raw, str) else classes_raw
+
         model_name = cam.get("model_name", "yolo11n")
 
-        engine = get_camera_engine(self.camera_id, model_name, zones)
+        engine = get_camera_engine(self.camera_id, model_name, zones, full_frame_classes)
 
         cap = cv2.VideoCapture(cam["url"])
         if not cap.isOpened():
@@ -171,11 +190,21 @@ class IpCameraWorker:
                     frame = cv2.resize(frame, (MAX_WIDTH, int(h * scale_factor)), interpolation=cv2.INTER_AREA)
 
                 result = engine.process_frame(frame, scale=scale_factor)
+                
+                # Burn annotations directly into the video frame
+                engine.draw_annotations(frame, result)
+                
+                # Encode the annotated frame to JPEG for the MJPEG stream
+                JPEG_QUALITY = 75
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+                
+                with self.frame_lock:
+                    self.latest_frame_bytes = buffer.tobytes()
+                self.frame_ready.set()
 
+                # Broadcast counts (UI badge updating) but exclude boxes to save massive JSON bandwidth
                 payload = json.dumps({
                     "event": "analytics",
-                    "resolution": result.resolution,
-                    "boxes": result.boxes,
                     "count": result.total_count,
                     "zone_counts": result.zone_counts,
                 })
