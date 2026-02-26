@@ -310,6 +310,11 @@ async def create_camera(camera: CameraCreate):
         row_dict["zones"] = json.loads(row_dict["zones"]) if row_dict["zones"] else []
         row_dict["classes"] = json.loads(row_dict["classes"]) if row_dict["classes"] else []
         
+        # Spawn the background worker if it's an IP camera (RTSP/HLS)
+        if camera.type == "rtsp" and camera.url:
+            from services.camera_worker import camera_manager
+            camera_manager.spawn_worker(camera.id)
+            
         return Camera(**row_dict)
     finally:
         await db.close()
@@ -358,6 +363,15 @@ async def update_camera(camera_id: str, camera_update: CameraUpdate):
             )
         )
         await db.commit()
+
+        # Restart background worker if it's an IP camera
+        if type_str == "rtsp" and url:
+            from services.camera_worker import camera_manager
+            camera_manager.spawn_worker(camera_id)
+        elif type_str != "rtsp":
+            # If swapped away from rtsp, kill it
+            from services.camera_worker import camera_manager
+            camera_manager.kill_worker(camera_id)
 
         return JSONResponse({"status": "success", "message": "Camera updated"})
     finally:
@@ -443,15 +457,9 @@ async def websocket_endpoint(websocket: WebSocket, camera_id: str):
 
     from services.camera_worker import camera_manager
     
-    # If this is an RTSP stream (non-HLS), spawn the background worker to analyze frames
-    # and send results to this websocket.
-    is_hls = camera_url and (".m3u8" in camera_url.lower() or "manifest" in camera_url.lower() or "hls" in camera_url.lower())
-    if camera_type == "rtsp" and not is_hls:
-        camera_manager.spawn_rtsp_worker(camera_id)
-
     try:
         while True:
-            # Client sends binary JPEG frames (used for Webcams and HLS streams)
+            # Client sends binary JPEG frames (used for Webcams)
             data = await websocket.receive_bytes()
             from services.camera_worker import process_frame_bytes
             result = process_frame_bytes(data, camera_id, model_name, zones)
@@ -463,8 +471,4 @@ async def websocket_endpoint(websocket: WebSocket, camera_id: str):
             active_connections[camera_id].remove(websocket)
         if not active_connections.get(camera_id):
             active_connections.pop(camera_id, None)
-            
-            # Kill the background worker if there are no more listeners
-            if camera_type == "rtsp" and not is_hls:
-                camera_manager.kill_worker(camera_id)
 

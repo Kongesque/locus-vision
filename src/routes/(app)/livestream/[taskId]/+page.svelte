@@ -174,11 +174,9 @@
 			}
 
 			captureInterval = setInterval(() => {
-				// Don't send frames back if we are already streaming RTSP from the backend.
-				// The backend processes RTSP streams internally and sends boxes down already!
-				if (cameraType === 'rtsp' && !isHlsUrl(cameraUrl)) return;
+				// Only send frames for webcam. RTSP and HLS are processed continuously in the background backend.
+				if (cameraType !== 'webcam') return;
 
-				// We now send frames for BOTH webcam and HLS.
 				if (!videoEl || videoEl.readyState < 2 || ws.readyState !== WebSocket.OPEN) return;
 
 				captureCanvas.width = videoEl.videoWidth || 640;

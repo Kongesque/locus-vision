@@ -75,9 +75,9 @@ def _dict_factory(cursor, row):
     return {col[0]: row[i] for i, col in enumerate(cursor.description)}
 
 
-class RtspWorker:
+class IpCameraWorker:
     """
-    A background thread that reads from an RTSP URL, runs YOLO with
+    A background thread that reads from an IP Camera URL, runs YOLO with
     zone-aware counting, and pushes results via WebSocket.
     """
     def __init__(self, camera_id: str, loop: asyncio.AbstractEventLoop):
@@ -156,10 +156,6 @@ class RtspWorker:
                 cap = cv2.VideoCapture(cam["url"])
                 continue
 
-            if not active_connections.get(self.camera_id):
-                time.sleep(0.5)
-                continue
-
             current_time = time.time()
             if current_time - last_process_time >= frame_time:
                 last_process_time = current_time
@@ -191,16 +187,16 @@ class RtspWorker:
 
 class CameraWorkerManager:
     def __init__(self):
-        self._workers: dict[str, RtspWorker] = {}
+        self._workers: dict[str, IpCameraWorker] = {}
         self.loop = None
 
     def initialize(self, loop: asyncio.AbstractEventLoop):
         self.loop = loop
 
-    def spawn_rtsp_worker(self, camera_id: str):
+    def spawn_worker(self, camera_id: str):
         if camera_id in self._workers:
             self._workers[camera_id].stop()
-        w = RtspWorker(camera_id, self.loop)
+        w = IpCameraWorker(camera_id, self.loop)
         self._workers[camera_id] = w
         w.start()
 

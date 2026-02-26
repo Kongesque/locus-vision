@@ -27,6 +27,19 @@ async def lifespan(app: FastAPI):
     # Start the video processing job queue worker
     job_queue.start()
     
+    # Start all persistent IP camera streams in the background
+    from database import get_db
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT id FROM cameras WHERE type = 'rtsp' AND url IS NOT NULL AND url != ''")
+        rows = await cursor.fetchall()
+        for row in rows:
+            camera_manager.spawn_worker(row["id"])
+    except Exception as e:
+        print(f"Failed to start persistent IP cameras: {e}")
+    finally:
+        await db.close()
+        
     yield
     
     # Cleanup background workers on shutdown
