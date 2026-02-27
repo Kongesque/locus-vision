@@ -1,9 +1,25 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { AspectRatio } from '$lib/components/ui/aspect-ratio/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ChevronLeft, Loader2, Download, FileJson, Activity } from '@lucide/svelte';
-	import { onMount, onDestroy, tick } from 'svelte';
+	import {
+		ChevronLeft,
+		Loader2,
+		Download,
+		FileJson,
+		Activity,
+		Shield,
+		Clock,
+		Eye,
+		Users,
+		AlertTriangle,
+		Play,
+		Pause,
+		Maximize,
+		Minimize,
+		HardDrive,
+		Layers
+	} from '@lucide/svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	let { data } = $props();
 
@@ -16,6 +32,9 @@
 
 	// Video element ref
 	let videoEl = $state<HTMLVideoElement | null>(null);
+	let isPlaying = $state(false);
+	let isFullscreen = $state(false);
+	let videoContainer: HTMLDivElement | null = $state(null);
 
 	// Timeline data
 	let timelineData = $state<{ timestamp: number; count: number }[]>([]);
@@ -25,6 +44,10 @@
 	let currentVideoTime = $state(0);
 	let videoDuration = $state(0);
 	let timelineLoaded = $state(false);
+
+	// Controls visibility
+	let showControls = $state(false);
+	let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Initialize state based on loaded data
 	$effect(() => {
@@ -84,7 +107,6 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
-		// Set canvas resolution to match display size
 		const rect = canvas.getBoundingClientRect();
 		const dpr = window.devicePixelRatio || 1;
 		canvas.width = rect.width * dpr;
@@ -97,7 +119,6 @@
 		const chartW = w - padding.left - padding.right;
 		const chartH = h - padding.top - padding.bottom;
 
-		// Clear
 		ctx.clearRect(0, 0, w, h);
 
 		if (timelineData.length === 0) return;
@@ -150,8 +171,7 @@
 		for (let i = 0; i < timelineData.length; i++) {
 			const x = padding.left + (timelineData[i].timestamp / maxTime) * chartW;
 			const y = padding.top + chartH - (timelineData[i].count / maxCount) * chartH;
-			if (i === 0) ctx.lineTo(x, y);
-			else ctx.lineTo(x, y);
+			ctx.lineTo(x, y);
 		}
 		ctx.lineTo(
 			padding.left + (timelineData[timelineData.length - 1].timestamp / maxTime) * chartW,
@@ -210,7 +230,6 @@
 			ctx.stroke();
 			ctx.setLineDash([]);
 
-			// Dot at the data point
 			if (hoveredCount !== null) {
 				const dotY = padding.top + chartH - (hoveredCount / maxCount) * chartH;
 				ctx.beginPath();
@@ -252,7 +271,6 @@
 		const maxTime = timelineData[timelineData.length - 1].timestamp || 1;
 		hoveredTime = (x / chartW) * maxTime;
 
-		// Find nearest data point
 		let nearest = timelineData[0];
 		let minDist = Infinity;
 		for (const d of timelineData) {
@@ -314,118 +332,281 @@
 		if (pollInterval) clearInterval(pollInterval);
 	}
 
+	// Video controls
+	function handleVideoMouseMove() {
+		showControls = true;
+		if (controlsTimeout) clearTimeout(controlsTimeout);
+		controlsTimeout = setTimeout(() => {
+			showControls = false;
+		}, 3000);
+	}
+
+	function handleVideoMouseLeave() {
+		if (controlsTimeout) clearTimeout(controlsTimeout);
+		controlsTimeout = setTimeout(() => {
+			showControls = false;
+		}, 1000);
+	}
+
+	function togglePlayPause() {
+		if (!videoEl) return;
+		if (videoEl.paused) {
+			videoEl.play();
+			isPlaying = true;
+		} else {
+			videoEl.pause();
+			isPlaying = false;
+		}
+	}
+
+	function toggleFullscreen() {
+		if (!videoContainer) return;
+		if (!document.fullscreenElement) {
+			videoContainer.requestFullscreen().catch((e) => console.error(e));
+		} else {
+			document.exitFullscreen();
+		}
+	}
+
+	function handleFullscreenChange() {
+		isFullscreen = !!document.fullscreenElement;
+	}
+
 	onMount(() => {
 		startPolling();
+		document.addEventListener('fullscreenchange', handleFullscreenChange);
 	});
 
 	onDestroy(() => {
 		stopPolling();
+		if (controlsTimeout) clearTimeout(controlsTimeout);
+		document.removeEventListener('fullscreenchange', handleFullscreenChange);
 	});
+
+	// Derived status helpers
+	let statusLabel = $derived(
+		status === 'loading'
+			? 'Connecting'
+			: status === 'processing'
+				? 'Processing'
+				: status === 'ready'
+					? 'Completed'
+					: 'Error'
+	);
+	let statusBadgeClass = $derived(
+		status === 'ready'
+			? 'bg-emerald-500/15 text-emerald-400'
+			: status === 'processing' || status === 'loading'
+				? 'bg-amber-500/15 text-amber-400'
+				: 'bg-red-500/15 text-red-400'
+	);
 </script>
 
 <svelte:head>
 	<title>{task ? task.filename : 'Task Result'} · Locus</title>
 </svelte:head>
 
-<div class="flex flex-1 flex-col gap-4 p-4">
-	<div class="mb-2 flex items-center justify-between">
-		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" href="/video-analytics">
-				<ChevronLeft class="h-4 w-4" />
+<div class="flex flex-1 flex-col overflow-hidden">
+	<!-- ─── Header Bar ─── -->
+	<header class="flex items-center justify-between border-b bg-card/50 px-4 py-3 backdrop-blur-sm">
+		<div class="flex items-center gap-3">
+			<Button variant="ghost" size="icon" href="/video-analytics" class="shrink-0">
+				<ChevronLeft class="size-4" />
 			</Button>
-			<h1 class="text-2xl font-bold tracking-tight">
-				{task ? task.filename : `Task ${taskId.slice(0, 8)}`}
-			</h1>
+			<div class="flex flex-col">
+				<div class="flex items-center gap-2">
+					<h1 class="text-lg font-semibold tracking-tight">
+						{task ? task.filename : `Task ${taskId?.slice(0, 8) ?? '—'}`}
+					</h1>
+					<!-- Status badge -->
+					<span
+						class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase {statusBadgeClass}"
+					>
+						{#if status === 'processing' || status === 'loading'}
+							<span class="relative flex size-1.5">
+								<span
+									class="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75"
+								></span>
+								<span class="relative inline-flex size-1.5 rounded-full bg-amber-500"></span>
+							</span>
+						{:else if status === 'ready'}
+							<span class="size-1.5 rounded-full bg-emerald-500"></span>
+						{:else}
+							<span class="size-1.5 rounded-full bg-red-500"></span>
+						{/if}
+						{statusLabel}
+					</span>
+				</div>
+				<p class="text-xs text-muted-foreground">
+					{task ? `${task.model_name || 'yolo11n'} · ${task.duration || '--:--'}` : 'Loading...'}
+					{#if taskProgress > 0 && status === 'processing'}
+						· {taskProgress}%
+					{/if}
+				</p>
+			</div>
 		</div>
 		<div class="flex items-center gap-2">
 			{#if status === 'ready'}
-				<Button size="sm" class="gap-2" href={videoSrc} download>
-					<Download class="h-4 w-4" />
-					Export Video
+				<Button
+					variant="outline"
+					size="sm"
+					class="gap-1.5"
+					href={`http://localhost:8000/api/video/${taskId}/data`}
+					download
+				>
+					<FileJson class="size-3.5" />
+					<span class="hidden sm:inline">Export JSON</span>
+				</Button>
+				<Button size="sm" class="gap-1.5" href={videoSrc} download>
+					<Download class="size-3.5" />
+					<span class="hidden sm:inline">Export Video</span>
 				</Button>
 			{/if}
-			<div class="ml-4 flex items-center gap-2">
-				<span class="relative flex h-3 w-3">
-					{#if status === 'processing' || status === 'loading'}
-						<span
-							class="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"
-						></span>
-						<span class="relative inline-flex h-3 w-3 rounded-full bg-yellow-500"></span>
-					{:else if status === 'ready'}
-						<span
-							class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
-						></span>
-						<span class="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
-					{:else}
-						<span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
-					{/if}
-				</span>
-				<span class="text-sm font-medium text-muted-foreground capitalize">
-					{status === 'loading' ? 'connecting' : status}
-				</span>
-			</div>
 		</div>
-	</div>
+	</header>
 
 	{#if status === 'error'}
-		<div class="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-red-500">
-			Failed to load video result.
+		<div
+			class="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+		>
+			<AlertTriangle class="size-4 shrink-0" />
+			Failed to load video result. The analysis may have encountered an error.
 		</div>
 	{/if}
 
-	<div class="flex flex-1 flex-row gap-4">
-		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4">
-			<div class="relative overflow-hidden rounded-lg border bg-black shadow-lg">
-				<AspectRatio ratio={16 / 9} class="group relative max-h-[80vh]">
+	<!-- ─── Main Content ─── -->
+	<div class="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row">
+		<!-- Left: Video + Timeline + Stats -->
+		<div class="flex min-w-0 flex-1 flex-col gap-4">
+			<!-- Video Player -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				bind:this={videoContainer}
+				class="group relative overflow-hidden rounded-xl border border-border/50 bg-black shadow-xl"
+				onmousemove={handleVideoMouseMove}
+				onmouseleave={handleVideoMouseLeave}
+			>
+				<div class="relative aspect-video">
 					{#if status === 'ready' && videoSrc}
 						<!-- svelte-ignore a11y_media_has_caption -->
 						<video
 							bind:this={videoEl}
 							src={videoSrc}
-							class="h-full w-full object-contain"
+							class="size-full object-contain"
 							controls
 							autoplay
 							loop
 							playsinline
 							crossorigin="anonymous"
 							ontimeupdate={() => {
-								if (videoEl) currentVideoTime = videoEl.currentTime;
+								if (videoEl) {
+									currentVideoTime = videoEl.currentTime;
+									isPlaying = !videoEl.paused;
+								}
 							}}
 							onloadedmetadata={() => {
 								if (videoEl) videoDuration = videoEl.duration;
 							}}
+							onplay={() => (isPlaying = true)}
+							onpause={() => (isPlaying = false)}
 						></video>
+
+						<!-- HUD overlay - top left: filename -->
+						<div class="pointer-events-none absolute top-3 left-3 z-10">
+							<span
+								class="font-mono text-[11px] font-medium tracking-wider text-white/50 uppercase"
+							>
+								{task?.filename || 'Video'}
+							</span>
+						</div>
+
+						<!-- HUD overlay - top right: model -->
+						<div class="pointer-events-none absolute top-3 right-3 z-10">
+							<span class="font-mono text-[10px] text-white/40">
+								{task?.model_name || 'yolo11n'} · 12fps
+							</span>
+						</div>
+
+						<!-- ─── Bottom Control Bar Overlay (shown on hover) ─── -->
+						<div
+							class="absolute right-0 bottom-0 left-0 z-20 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pt-10 pb-3 transition-all duration-300 {showControls ||
+							isFullscreen
+								? 'translate-y-0 opacity-100'
+								: 'translate-y-2 opacity-0'}"
+						>
+							<div class="flex items-center gap-3">
+								<button
+									onclick={togglePlayPause}
+									class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+								>
+									{#if isPlaying}
+										<Pause class="size-4" />
+									{:else}
+										<Play class="size-4" />
+									{/if}
+								</button>
+								<span class="font-mono text-xs text-white/60">
+									{formatTime(currentVideoTime)} / {formatTime(videoDuration)}
+								</span>
+							</div>
+							<div class="flex items-center gap-1">
+								<button
+									onclick={toggleFullscreen}
+									class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+								>
+									{#if isFullscreen}
+										<Minimize class="size-4" />
+									{:else}
+										<Maximize class="size-4" />
+									{/if}
+								</button>
+							</div>
+						</div>
 					{:else if status === 'processing' || status === 'loading'}
 						<div
-							class="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground"
+							class="flex size-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900"
 						>
-							<Loader2 class="h-8 w-8 animate-spin" />
-							<p>Processing video task... {taskProgress > 0 ? `${taskProgress}%` : ''}</p>
-							{#if taskProgress > 0}
-								<div class="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
-									<div
-										class="h-full rounded-full bg-blue-500 transition-all duration-500 ease-out"
-										style="width: {taskProgress}%"
-									></div>
-								</div>
-							{/if}
-							<p class="text-xs opacity-70">
-								This typically takes 10-30 seconds depending on video length.
-							</p>
+							<div class="relative">
+								<Loader2 class="size-10 animate-spin text-blue-400" />
+								{#if taskProgress > 0}
+									<div class="absolute -bottom-6 left-1/2 -translate-x-1/2">
+										<span class="font-mono text-lg font-bold text-white">{taskProgress}%</span>
+									</div>
+								{/if}
+							</div>
+							<div class="mt-4 flex flex-col items-center gap-2">
+								<p class="text-sm font-medium text-white/70">Processing video analysis...</p>
+								{#if taskProgress > 0}
+									<div class="h-1.5 w-56 overflow-hidden rounded-full bg-white/10">
+										<div
+											class="h-full rounded-full bg-blue-500 transition-all duration-700 ease-out"
+											style="width: {taskProgress}%"
+										></div>
+									</div>
+								{/if}
+								<p class="mt-1 text-xs text-white/40">
+									This typically takes 10–30 seconds depending on video length.
+								</p>
+							</div>
+						</div>
+					{:else if status === 'error'}
+						<div
+							class="flex size-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900"
+						>
+							<AlertTriangle class="size-8 text-red-400/60" />
+							<p class="text-sm text-white/50">Analysis failed</p>
 						</div>
 					{/if}
-				</AspectRatio>
+				</div>
 			</div>
 
-			<!-- Interactive Activity Timeline -->
+			<!-- ─── Activity Timeline ─── -->
 			{#if status === 'ready' && timelineData.length > 0}
-				<div class="overflow-hidden rounded-lg border bg-card shadow-sm">
-					<div class="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
+				<div class="overflow-hidden rounded-xl border bg-card shadow-sm">
+					<div class="flex items-center justify-between border-b px-4 py-3">
 						<div class="flex items-center gap-2">
-							<Activity class="h-4 w-4 text-blue-400" />
-							<h3 class="text-sm font-semibold tracking-tight text-muted-foreground">
-								Activity Timeline
-							</h3>
+							<Activity class="size-4 text-blue-400" />
+							<h3 class="text-sm font-semibold tracking-tight">Activity Timeline</h3>
 						</div>
 						<div class="flex items-center gap-3 text-xs text-muted-foreground">
 							{#if hoveredTime !== null}
@@ -450,87 +631,162 @@
 				</div>
 			{/if}
 
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-				<div class="grid grid-cols-2 gap-4 md:col-span-2">
-					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-						<div class="text-sm font-semibold text-muted-foreground">Detection Model</div>
-						<div class="mt-1 text-2xl font-bold tracking-tight">
-							{task ? task.model_name || 'yolo11n' : 'Loading...'}
-						</div>
+			<!-- ─── Stats Cards ─── -->
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+				<div
+					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
+				>
+					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+						<Shield class="size-3.5 text-blue-400" />
+						Detection Model
 					</div>
-					<div class="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-						<div class="text-sm font-semibold text-muted-foreground">Duration Analyzed</div>
-						<div class="mt-1 text-2xl font-bold tracking-tight">
-							{task ? task.duration || '--:--' : '--:--'}
-						</div>
-					</div>
-
-					<div
-						class="col-span-2 flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
-					>
-						<div class="text-sm font-semibold text-muted-foreground">Analysis Context</div>
-						<div class="text-sm">
-							Processed using high-accuracy tracking at 12fps. Export data to view raw JSON
-							detections for every frame, tracked via DeepSort.
-						</div>
-						<div class="mt-2">
-							<Button
-								variant="secondary"
-								size="sm"
-								class="gap-2"
-								href={`http://localhost:8000/api/video/${taskId}/data`}
-								download
-							>
-								<FileJson class="h-4 w-4" />
-								Export Raw Data (JSON)
-							</Button>
-						</div>
+					<div class="mt-1.5 text-sm font-semibold tracking-tight">
+						{task ? task.model_name || 'yolo11n' : '—'}
 					</div>
 				</div>
-
 				<div
-					class="flex min-h-[200px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm"
+					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
 				>
-					<div class="border-b bg-muted/30 p-4">
-						<h3 class="text-sm font-semibold tracking-tight text-muted-foreground">
-							Detected Activity Summary
-						</h3>
+					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+						<Clock class="size-3.5 text-purple-400" />
+						Duration
 					</div>
-					<div class="flex flex-1 flex-col p-4">
-						{#if status === 'ready' && task}
-							<div class="mb-4 flex flex-col items-center justify-center border-b pb-4">
-								<div class="mb-1 text-sm text-muted-foreground">Total Unique Objects</div>
-								<div class="text-5xl font-bold text-primary">{task.total_count || 0}</div>
-							</div>
-
-							<!-- Render Zone Counts if they exist -->
-							{@const parsedZoneCounts = task.zone_counts ? JSON.parse(task.zone_counts) : null}
-							{#if parsedZoneCounts && Object.keys(parsedZoneCounts).length > 0}
-								<div class="grid w-full grid-cols-2 gap-2">
-									{#each Object.entries(parsedZoneCounts) as [zoneId, count]}
-										<div class="rounded bg-muted/30 p-2 text-center">
-											<div class="truncate text-xs text-muted-foreground" title={zoneId}>
-												{zoneId.length > 8 ? `Zone ${zoneId.slice(0, 4)}` : zoneId}
-											</div>
-											<div class="text-xl font-bold">{count}</div>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div class="mt-4 text-center text-sm text-muted-foreground">
-									No zones defined for this task.
-								</div>
-							{/if}
-						{:else}
-							<div
-								class="flex flex-1 flex-col items-center justify-center text-center text-sm text-muted-foreground"
-							>
-								Waiting for analysis to complete...
-							</div>
-						{/if}
+					<div class="mt-1.5 text-sm font-semibold tracking-tight">
+						{task ? task.duration || '--:--' : '--:--'}
+					</div>
+				</div>
+				<div
+					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
+				>
+					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+						<HardDrive class="size-3.5 text-amber-400" />
+						Processing
+					</div>
+					<div class="mt-1.5 text-sm font-semibold tracking-tight">12 FPS · DeepSort</div>
+				</div>
+				<div
+					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
+				>
+					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+						<Layers class="size-3.5 text-emerald-400" />
+						Status
+					</div>
+					<div class="mt-1.5 text-sm font-semibold tracking-tight capitalize">
+						{statusLabel}
 					</div>
 				</div>
 			</div>
 		</div>
+
+		<!-- ─── Right Sidebar: Detection Summary ─── -->
+		<div class="flex w-full flex-col lg:w-80 xl:w-96">
+			<div class="flex flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+				<!-- Summary header -->
+				<div class="border-b px-4 py-3">
+					<div class="flex items-center gap-2">
+						<Eye class="size-4 text-blue-400" />
+						<h3 class="text-sm font-semibold tracking-tight">Detection Summary</h3>
+					</div>
+				</div>
+
+				<div class="flex-1 overflow-y-auto p-4">
+					{#if status === 'ready' && task}
+						<!-- Total Count Hero -->
+						<div class="mb-4 flex flex-col items-center rounded-xl border bg-muted/20 p-6">
+							<div class="mb-1 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+								Total Unique Objects
+							</div>
+							<div class="text-5xl font-bold tracking-tight text-primary">
+								{task.total_count || 0}
+							</div>
+							<div class="mt-2 flex items-center gap-1.5">
+								<Users class="size-3.5 text-muted-foreground" />
+								<span class="text-xs text-muted-foreground">tracked across entire video</span>
+							</div>
+						</div>
+
+						<!-- Zone Counts -->
+						{@const parsedZoneCounts = task.zone_counts ? JSON.parse(task.zone_counts) : null}
+						{#if parsedZoneCounts && Object.keys(parsedZoneCounts).length > 0}
+							<div class="mb-4">
+								<h4
+									class="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+								>
+									<Layers class="size-3.5" />
+									Zone Breakdown
+								</h4>
+								<div class="space-y-2">
+									{#each Object.entries(parsedZoneCounts) as [zoneId, count]}
+										<div
+											class="flex items-center justify-between rounded-lg border bg-muted/10 px-3 py-2.5"
+										>
+											<div class="flex items-center gap-2">
+												<div class="size-2 rounded-full bg-blue-400"></div>
+												<span class="truncate text-sm" title={zoneId}>
+													{zoneId.length > 8 ? `Zone ${zoneId.slice(0, 4)}` : zoneId}
+												</span>
+											</div>
+											<span class="font-mono text-lg font-bold">{count}</span>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{:else}
+							<div class="mb-4 rounded-lg border border-dashed p-4 text-center">
+								<p class="text-xs text-muted-foreground">No zones defined for this analysis.</p>
+							</div>
+						{/if}
+
+						<!-- Analysis Context -->
+						<div class="rounded-xl border bg-muted/10 p-4">
+							<h4 class="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+								Analysis Context
+							</h4>
+							<p class="text-xs leading-relaxed text-muted-foreground">
+								Processed using high-accuracy tracking at 12fps. Objects tracked via DeepSort with
+								unique ID assignment. Export raw JSON to view per-frame detections.
+							</p>
+						</div>
+					{:else if status === 'processing' || status === 'loading'}
+						<div class="flex flex-col items-center justify-center gap-3 py-12 text-center">
+							<Loader2 class="size-6 animate-spin text-muted-foreground/50" />
+							<p class="text-sm text-muted-foreground">Waiting for analysis to complete...</p>
+							<p class="text-xs text-muted-foreground/60">Results will appear here automatically</p>
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center gap-3 py-12 text-center">
+							<AlertTriangle class="size-6 text-red-400/40" />
+							<p class="text-sm text-muted-foreground">Analysis failed</p>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
 	</div>
+
+	<!-- ─── Footer ─── -->
+	<footer class="flex items-center justify-between border-t bg-card/50 px-4 py-2 backdrop-blur-sm">
+		<div class="flex items-center gap-4">
+			<div class="flex items-center gap-1.5">
+				<span
+					class="size-1.5 rounded-full {status === 'ready'
+						? 'bg-emerald-500'
+						: status === 'error'
+							? 'bg-red-500'
+							: 'animate-pulse bg-amber-500'}"
+				></span>
+				<span class="text-[11px] text-muted-foreground">{statusLabel}</span>
+			</div>
+			{#if status === 'ready' && timelineData.length > 0}
+				<div class="hidden items-center gap-1.5 sm:flex">
+					<Activity class="size-3 text-muted-foreground" />
+					<span class="text-[11px] text-muted-foreground">{timelineData.length} data points</span>
+				</div>
+			{/if}
+		</div>
+		<div class="flex items-center gap-4">
+			<span class="text-[11px] text-muted-foreground">Task ID: {taskId?.slice(0, 8) ?? '—'}...</span
+			>
+		</div>
+	</footer>
 </div>
