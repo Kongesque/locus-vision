@@ -22,10 +22,11 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 ## Features
 
 - **Edge-Optimized AI** — Lightweight ONNX Runtime inference (~15MB engine) replaces heavy PyTorch dependencies, halving the backend footprint for Raspberry Pi 5 deployment.
-- **Unified Analytics Engine** — Shared stateful object tracking (ByteTrack) and zone-based ROI counting logic serving both real-time streams and recorded video tasks.
+- **Unified Analytics Engine** — Shared stateful object tracking (ByteTrack) and zone-based ROI counting logic.
 - **Directional Line Crossing** — A/B region virtual lines with mathematically accurate vector cross-product trajectory detection (A↔B, A→B, B→A).
-- **Live Stream** — Real-time RTSP/Webcam feeds with HLS proxying and ultra-low-latency WebSocket bounding box overlays drawn seamlessly on the frontend canvas.
-- **Video Analytics** — Process offline video files with custom polygonal and line zones, class filtering, and downloadable hard-annotated MP4 results perfectly matching the livestream UI.
+- **Video Analytics Job Queue** — Robust background job queue system for batch video uploads, sequential processing via a dedicated multiprocessing worker, and real-time progress tracking.
+- **Optimized Background Processing** — OS-level multiprocessing architecture bypassing the Python GIL, coupled with a motion detection pipeline to pre-filter static frames and optimize CPU usage.
+- **Live Stream** — //TODO: Re-integrate backend real-time RTSP/Webcam feeds. The frontend UI currently uses mocked data.
 - **Authentication** — JWT-based auth with HttpOnly cookies, auto-refresh
 - **Role-Based Access** — admin and viewer roles
 - **User Management** — admin panel for user CRUD, role assignment, activation
@@ -38,8 +39,8 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 ```text
 locusvision/
 ├── backend/               # FastAPI backend & analytics engine
-│   ├── routers/           # API endpoints (auth, video, settings, etc.)
-│   ├── services/          # Core analytics, vision, and stream processing services
+│   ├── routers/           # API endpoints (auth, video processing, settings, etc.)
+│   ├── services/          # Core analytics, vision, and background job queue services
 │   ├── main.py            # FastAPI application entry point
 │   └── database.py        # SQLite async database configuration
 ├── src/                   # SvelteKit frontend application
@@ -53,6 +54,8 @@ locusvision/
 
 Locus is under active development. Recent milestones include:
 
+- **Multiprocessing & Job Queue Architecture**: Completely refactored the background processing to use true multiprocessing (bypassing the GIL) with shared memory and queues, resulting in a highly scalable and fault-tolerant video analytics pipeline.
+- **Motion Detection Optimization**: Introduced a pre-filtering motion detection pipeline to drop static frames before running expensive AI object detection, drastically reducing CPU usage.
 - **Advanced Analytics & UI**: Unified annotation drawing across the frontend and backend. Added support for dashed zone borders, semi-transparent zone fills, colored bounding boxes with class labels, and on-screen count overlays.
 - **Directional Crossing Filters**: Enhanced line zones with intersection detection and precise crossing direction selection in both the UI and analytics engine.
 - **System & Media Management**: Introduced system storage statistics display, media deletion capabilities, theme mode selection, and complete user account deletion functionalities.
