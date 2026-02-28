@@ -29,7 +29,8 @@
 		MoveLeft,
 		MoveRight,
 		RotateCcw,
-		ImageIcon
+		ImageIcon,
+		VideoOff
 	} from '@lucide/svelte';
 	import { onMount, onDestroy } from 'svelte';
 
@@ -121,55 +122,48 @@
 			: activityLogs.filter((l) => l.type === activeEventFilter)
 	);
 
-	// ─── Mock Event Generator ───
-	let mockInterval: ReturnType<typeof setInterval> | null = null;
-	const mockEvents: { msg: string; type: EventType; zone?: string }[] = [
-		{ msg: 'Person detected near entrance', type: 'person', zone: 'Entrance' },
-		{ msg: 'Vehicle entering parking lot', type: 'vehicle', zone: 'Parking Lot' },
-		{ msg: 'Motion detected in sector B', type: 'motion' },
-		{ msg: 'Person entered Main Lobby zone', type: 'zone', zone: 'Main Lobby' },
-		{ msg: 'Person detected at entrance', type: 'person', zone: 'Entrance' },
-		{ msg: 'Vehicle stopped in parking zone', type: 'vehicle', zone: 'Parking Lot' },
-		{ msg: 'Loitering alert — Entrance zone', type: 'alert', zone: 'Entrance' },
-		{ msg: 'Person crossed line A→B', type: 'zone' },
-		{ msg: 'Motion spike detected', type: 'motion' },
-		{ msg: 'New person tracked (ID #47)', type: 'person' },
-		// Adding more alerts to make the demo more obvious
-		{ msg: 'Unauthorized vehicle in loading bay', type: 'alert', zone: 'Loading Bay' },
-		{ msg: 'Camera tampering detected', type: 'alert' }
-	];
+	// ─── Real-time Event Sink (Server-Sent Events) ───
+	let eventSource: EventSource | null = null;
+	let isConnected = $state(false);
 
-	function startMockEvents() {
-		// Seed initial events
-		for (let i = 0; i < 6; i++) {
-			const ev = mockEvents[Math.floor(Math.random() * mockEvents.length)];
-			addActivityLog(ev.msg, ev.type, ev.zone);
+	$effect(() => {
+		// Only run in the browser
+		if (typeof window !== 'undefined') {
+			eventSource = new EventSource(`http://localhost:8000/api/livestream/${taskId}/events`);
+
+			eventSource.onopen = () => {
+				isConnected = true;
+				console.log('Connected to Livestream Events via SSE');
+			};
+
+			eventSource.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					addActivityLog(data.message, data.type, data.zone);
+
+					// Slight randomization for dashboard liveliness based on AI events
+					trackCount += Math.floor(Math.random() * 3) - 1;
+					if (trackCount < 0) trackCount = 0;
+				} catch (e) {
+					console.error('Failed to parse SSE event:', e);
+				}
+			};
+
+			eventSource.onerror = (error) => {
+				console.error('SSE connection error:', error);
+				isConnected = false;
+				// EventSource automatically tries to reconnect
+			};
+
+			// Cleanup on dismount
+			return () => {
+				if (eventSource) {
+					eventSource.close();
+					isConnected = false;
+				}
+			};
 		}
-		// Continue adding
-		mockInterval = setInterval(
-			() => {
-				const ev = mockEvents[Math.floor(Math.random() * mockEvents.length)];
-				addActivityLog(ev.msg, ev.type, ev.zone);
-				// Vary counts slightly
-				trackCount = Math.max(0, trackCount + Math.floor(Math.random() * 3) - 1);
-				zoneCounts = {
-					'zone-entrance': Math.max(
-						0,
-						(zoneCounts['zone-entrance'] || 0) + Math.floor(Math.random() * 3) - 1
-					),
-					'zone-parking': Math.max(
-						0,
-						(zoneCounts['zone-parking'] || 0) + Math.floor(Math.random() * 3) - 1
-					),
-					'zone-lobby': Math.max(
-						0,
-						(zoneCounts['zone-lobby'] || 0) + Math.floor(Math.random() * 3) - 1
-					)
-				};
-			},
-			3500 + Math.random() * 2000
-		);
-	}
+	});
 
 	// ─── Timestamp ticker for HUD ───
 	let currentTime = $state(new Date());
@@ -236,13 +230,6 @@
 		// GET /api/cameras/{taskId}
 		// Response: { name, type, url, model, status, zones, ... }
 
-		// TODO: Connect to video stream (RTSP/WebRTC/MJPEG)
-		// The backend MJPEG proxy was removed. Reconnect when backend is ready.
-
-		// TODO: WebSocket for real-time analytics
-		// ws://localhost:8000/api/cameras/{taskId}/ws
-
-		startMockEvents();
 		clockInterval = setInterval(() => {
 			currentTime = new Date();
 		}, 1000);
@@ -250,7 +237,6 @@
 	});
 
 	onDestroy(() => {
-		if (mockInterval) clearInterval(mockInterval);
 		if (clockInterval) clearInterval(clockInterval);
 		if (controlsTimeout) clearTimeout(controlsTimeout);
 		if (typeof document !== 'undefined') {
@@ -381,17 +367,25 @@
 				onmouseleave={handleVideoMouseLeave}
 			>
 				<div class="relative aspect-video w-full" style="max-height: 100%;">
-					<!-- TODO: Connect to actual video stream -->
-					<!-- Placeholder: dark gradient simulating a camera feed -->
 					<div
-						class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 {hasActiveAlert
+						class="absolute inset-0 bg-black {hasActiveAlert
 							? 'bg-red-950/20'
-							: ''} transition-colors duration-500"
+							: ''} flex items-center justify-center overflow-hidden rounded-lg transition-colors duration-500"
 					>
-						<div
-							class="absolute inset-0 bg-[url('/locus.png')] bg-contain bg-center bg-no-repeat opacity-30"
-						></div>
-						<!-- Scanline effect -->
+						{#if isConnected}
+							<img
+								src={`http://localhost:8000/api/livestream/${taskId}/video`}
+								alt="Live Video Feed"
+								class="h-full w-full object-contain"
+							/>
+						{:else}
+							<div class="flex flex-col items-center justify-center gap-4 text-zinc-500">
+								<VideoOff class="size-8 opacity-50" />
+								<span class="text-sm">Connecting to stream...</span>
+							</div>
+						{/if}
+
+						<!-- Scanline effect overlay -->
 						<div
 							class="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_2px,rgba(0,0,0,0.03)_4px)]"
 						></div>
