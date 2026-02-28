@@ -21,8 +21,10 @@
 		drawingMode,
 		onZoneCreated,
 		onZoneSelected,
-		onZoneUpdated
-	}: Props = $props();
+		onZoneUpdated,
+		naturalWidth = $bindable(0),
+		naturalHeight = $bindable(0)
+	}: Props & { naturalWidth?: number; naturalHeight?: number } = $props();
 
 	const videoState = useVideo();
 
@@ -88,6 +90,8 @@
 			naturalWidth: nw,
 			naturalHeight: nh
 		};
+		naturalWidth = nw;
+		naturalHeight = nh;
 	}
 
 	onMount(() => {

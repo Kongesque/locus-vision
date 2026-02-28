@@ -22,6 +22,11 @@
 	});
 
 	// State
+	let isProcessing = $state(false);
+	let videoNaturalWidth = $state(1920);
+	let videoNaturalHeight = $state(1080);
+	let errorMsg = $state<string | null>(null);
+
 	let zones = $state<Zone[]>([]);
 	let selectedZoneId = $state<string | null>(null);
 	let drawingMode = $state<'polygon' | 'line'>('polygon');
@@ -85,9 +90,18 @@
 
 			const formData = new FormData();
 			formData.append('video', file);
-			formData.append('zones', JSON.stringify(zones));
-			formData.append('model', selectedModel);
+			// Normalize zones to relative coordinates [0.0 - 1.0]
+			const normalizedZones = zones.map((z) => ({
+				...z,
+				points: z.points.map((p) => ({
+					x: videoNaturalWidth ? p.x / videoNaturalWidth : 0,
+					y: videoNaturalHeight ? p.y / videoNaturalHeight : 0
+				}))
+			}));
+
+			formData.append('zones', JSON.stringify(normalizedZones));
 			formData.append('classes', JSON.stringify(fullFrameClasses));
+			formData.append('model_name', selectedModel);
 
 			// Fire-and-forget: upload in background
 			fetch(`http://localhost:8000/api/video/${taskId}/process`, {
@@ -100,11 +114,20 @@
 		} else {
 			// --- Camera Analytics Flow ---
 			try {
+				// Normalize zones to relative coordinates [0.0 - 1.0] before sending to backend
+				const normalizedZones = zones.map((z) => ({
+					...z,
+					points: z.points.map((p) => ({
+						x: videoNaturalWidth ? p.x / videoNaturalWidth : 0,
+						y: videoNaturalHeight ? p.y / videoNaturalHeight : 0
+					}))
+				}));
+
 				const response = await fetch(`http://localhost:8000/api/cameras/${taskId}`, {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
-						zones: JSON.stringify(zones),
+						zones: JSON.stringify(normalizedZones),
 						classes: JSON.stringify(fullFrameClasses),
 						model_name: selectedModel
 					})
@@ -137,6 +160,8 @@
 				onZoneCreated={handleZoneCreated}
 				onZoneSelected={handleZoneSelected}
 				onZoneUpdated={handleZoneUpdated}
+				bind:naturalWidth={videoNaturalWidth}
+				bind:naturalHeight={videoNaturalHeight}
 			/>
 		</Card.Root>
 

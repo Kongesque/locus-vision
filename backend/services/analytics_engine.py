@@ -24,12 +24,13 @@ class AnalyticsResult:
 @dataclass
 class ParsedZone:
     """Pre-parsed zone polygon for efficient per-frame checking."""
-    poly: np.ndarray
+    poly_rel: np.ndarray  # Relative points [0.0 - 1.0]
     color: tuple
     zone_id: str
     classes: list  # List of class IDs to filter (empty = all)
     zone_type: str = "polygon"  # 'polygon' or 'line'
     direction: str = "both"  # 'both', 'in', or 'out' (line zones only)
+    poly: Optional[np.ndarray] = None  # Absolute pixel coordinates calculated per frame
 
 
 class AnalyticsEngine:
@@ -96,15 +97,17 @@ class AnalyticsEngine:
             points = zone.get("points", [])
             if len(points) < 2:
                 continue
-            pts = np.array([[p['x'], p['y']] for p in points], np.int32)
+            
+            # Points are now expected to be relative [0.0 - 1.0] from frontend
+            pts_rel = np.array([[p['x'], p['y']] for p in points], dtype=np.float32)
             
             # Require at least 3 points for a polygon, 2 for a line
             z_type = zone.get("type", "polygon")
-            if z_type == "polygon" and len(pts) < 3:
+            if z_type == "polygon" and len(pts_rel) < 3:
                 continue
                 
             self.parsed_zones.append(ParsedZone(
-                poly=pts,
+                poly_rel=pts_rel,
                 color=self._parse_color(zone.get("color", "#00ff00")),
                 zone_id=zone.get("id", ""),
                 classes=self._get_class_ids(zone.get("classes", [])),
@@ -130,6 +133,10 @@ class AnalyticsEngine:
         Returns an AnalyticsResult with boxes, counts, and resolution.
         """
         h, w = frame.shape[:2]
+
+        # Ensure absolute polygons are scaled to current frame size
+        for z in self.parsed_zones:
+            z.poly = (z.poly_rel * [w, h]).astype(np.int32)
 
         # 1. Motion Detection Stage
         # Resize frame for faster motion detection (MOG2 is CPU bound)
