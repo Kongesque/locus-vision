@@ -17,7 +17,9 @@
 		Maximize,
 		Minimize,
 		HardDrive,
-		Layers
+		Layers,
+		SkipBack,
+		SkipForward
 	} from '@lucide/svelte';
 	import { onMount, onDestroy } from 'svelte';
 
@@ -36,8 +38,23 @@
 	let isFullscreen = $state(false);
 	let videoContainer: HTMLDivElement | null = $state(null);
 
+	// Filtering
+	let availableClasses = $state<string[]>([]);
+	let activeClassFilter = $state<string>('all');
+
 	// Timeline data
-	let timelineData = $state<{ timestamp: number; count: number }[]>([]);
+	let rawTimelineData = $state<
+		{ timestamp: number; count: number; classes?: Record<string, number> }[]
+	>([]);
+	let timelineData = $derived(
+		activeClassFilter === 'all'
+			? rawTimelineData
+			: rawTimelineData.map((d) => ({
+					timestamp: d.timestamp,
+					count: d.classes?.[activeClassFilter] || 0
+				}))
+	);
+
 	let timelineCanvas = $state<HTMLCanvasElement | null>(null);
 	let hoveredTime = $state<number | null>(null);
 	let hoveredCount = $state<number | null>(null);
@@ -90,10 +107,22 @@
 			if (!res.ok) return;
 			const json = await res.json();
 			if (json.frames && Array.isArray(json.frames)) {
-				timelineData = json.frames.map((f: any) => ({
-					timestamp: f.timestamp,
-					count: f.current_total_count ?? 0
-				}));
+				const classesFound = new Set<string>();
+
+				rawTimelineData = json.frames.map((f: any) => {
+					// Backend stores per-class counts in `class_frequencies` or similar depending on implementation
+					// If missing, we'll gracefully fallback to just total count
+					const classFreqs = f.class_frequencies || {};
+					Object.keys(classFreqs).forEach((k) => classesFound.add(k));
+
+					return {
+						timestamp: f.timestamp,
+						count: f.current_total_count ?? 0,
+						classes: classFreqs
+					};
+				});
+
+				availableClasses = Array.from(classesFound).sort();
 				timelineLoaded = true;
 			}
 		} catch (e) {
@@ -359,6 +388,42 @@
 		}
 	}
 
+	function seekToNextEvent() {
+		if (!videoEl || timelineData.length === 0) return;
+
+		// Find the next significant spike (count > 0) after current time + a small buffer
+		const buffer = 1.0; // seconds
+		const nextEvent = timelineData.find(
+			(d) => d.timestamp > currentVideoTime + buffer && d.count > 0
+		);
+
+		if (nextEvent) {
+			videoEl.currentTime = nextEvent.timestamp;
+		} else {
+			// No more events found, jump to end
+			videoEl.currentTime = videoDuration;
+		}
+	}
+
+	function seekToPrevEvent() {
+		if (!videoEl || timelineData.length === 0) return;
+
+		// Find the previous significant spike before current time - a small buffer
+		const buffer = 2.0; // seconds backwards
+		const reversedData = [...timelineData].reverse();
+		const prevEvent = reversedData.find(
+			(d) => d.timestamp < Math.max(0, currentVideoTime - buffer) && d.count > 0
+		);
+
+		if (prevEvent) {
+			// Try to jump slightly before the spike context
+			videoEl.currentTime = Math.max(0, prevEvent.timestamp - 1.0);
+		} else {
+			// No previous events found, jump to start
+			videoEl.currentTime = 0;
+		}
+	}
+
 	function toggleFullscreen() {
 		if (!videoContainer) return;
 		if (!document.fullscreenElement) {
@@ -535,16 +600,32 @@
 							: 'translate-y-2 opacity-0'}"
 					>
 						<div class="flex items-center gap-3">
-							<button
-								onclick={togglePlayPause}
-								class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								{#if isPlaying}
-									<Pause class="size-4" />
-								{:else}
-									<Play class="size-4" />
-								{/if}
-							</button>
+							<div class="flex items-center gap-1">
+								<button
+									onclick={seekToPrevEvent}
+									class="flex items-center justify-center rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+									title="Previous Event"
+								>
+									<SkipBack class="size-4" />
+								</button>
+								<button
+									onclick={togglePlayPause}
+									class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+								>
+									{#if isPlaying}
+										<Pause class="size-4" />
+									{:else}
+										<Play class="size-4" />
+									{/if}
+								</button>
+								<button
+									onclick={seekToNextEvent}
+									class="flex items-center justify-center rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+									title="Next Event"
+								>
+									<SkipForward class="size-4" />
+								</button>
+							</div>
 							<span class="font-mono text-xs text-white/60">
 								{formatTime(currentVideoTime)} / {formatTime(videoDuration)}
 							</span>
@@ -617,6 +698,33 @@
 							{/if}
 						</div>
 					</div>
+
+					<!-- ─── Filter Controls ─── -->
+					{#if availableClasses.length > 0}
+						<div class="flex items-center gap-1.5 overflow-x-auto border-b bg-muted/5 px-4 py-2">
+							<button
+								onclick={() => (activeClassFilter = 'all')}
+								class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors {activeClassFilter ===
+								'all'
+									? 'bg-primary text-primary-foreground'
+									: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+							>
+								All Objects
+							</button>
+							{#each availableClasses as cls}
+								<button
+									onclick={() => (activeClassFilter = cls)}
+									class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors {activeClassFilter ===
+									cls
+										? 'bg-primary text-primary-foreground'
+										: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+								>
+									{cls}
+								</button>
+							{/each}
+						</div>
+					{/if}
+
 					<div class="p-3">
 						<canvas
 							bind:this={timelineCanvas}

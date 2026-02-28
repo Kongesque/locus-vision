@@ -89,6 +89,8 @@
 	};
 
 	let activityLogs = $state<ActivityEvent[]>([]);
+	let hasActiveAlert = $state(false);
+	let alertTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	function addActivityLog(message: string, type: EventType, zone?: string) {
 		const now = new Date();
@@ -98,10 +100,19 @@
 			minute: '2-digit',
 			second: '2-digit'
 		});
-		activityLogs = [
-			{ time: timeStr, message, type, zone, id: crypto.randomUUID() },
-			...activityLogs
-		].slice(0, 100);
+
+		const newEvent: ActivityEvent = { time: timeStr, message, type, zone, id: crypto.randomUUID() };
+
+		// Trigger highlight for high-priority events
+		if (type === 'alert' || type === 'zone') {
+			hasActiveAlert = true;
+			if (alertTimeout) clearTimeout(alertTimeout);
+			alertTimeout = setTimeout(() => {
+				hasActiveAlert = false;
+			}, 4000);
+		}
+
+		activityLogs = [newEvent, ...activityLogs].slice(0, 100);
 	}
 
 	let filteredLogs = $derived(
@@ -122,7 +133,10 @@
 		{ msg: 'Loitering alert — Entrance zone', type: 'alert', zone: 'Entrance' },
 		{ msg: 'Person crossed line A→B', type: 'zone' },
 		{ msg: 'Motion spike detected', type: 'motion' },
-		{ msg: 'New person tracked (ID #47)', type: 'person' }
+		{ msg: 'New person tracked (ID #47)', type: 'person' },
+		// Adding more alerts to make the demo more obvious
+		{ msg: 'Unauthorized vehicle in loading bay', type: 'alert', zone: 'Loading Bay' },
+		{ msg: 'Camera tampering detected', type: 'alert' }
 	];
 
 	function startMockEvents() {
@@ -359,7 +373,9 @@
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				bind:this={videoContainer}
-				class="group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-black shadow-xl"
+				class="group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl bg-black shadow-xl transition-all duration-500 {hasActiveAlert
+					? 'border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)]'
+					: 'border border-border/50'}"
 				style={isFullscreen ? 'height: 100vh;' : 'height: calc(100vh - 18rem); min-height: 24rem;'}
 				onmousemove={handleVideoMouseMove}
 				onmouseleave={handleVideoMouseLeave}
@@ -367,7 +383,11 @@
 				<div class="relative aspect-video w-full" style="max-height: 100%;">
 					<!-- TODO: Connect to actual video stream -->
 					<!-- Placeholder: dark gradient simulating a camera feed -->
-					<div class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900">
+					<div
+						class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 {hasActiveAlert
+							? 'bg-red-950/20'
+							: ''} transition-colors duration-500"
+					>
 						<div
 							class="absolute inset-0 bg-[url('/locus.png')] bg-contain bg-center bg-no-repeat opacity-30"
 						></div>
