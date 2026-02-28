@@ -75,6 +75,13 @@
 					/>
 				{/each}
 			</div>
+		{:else if history.length === 0}
+			<div
+				class="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center"
+			>
+				<p class="text-sm text-muted-foreground">No videos processed yet.</p>
+				<p class="mt-1 text-xs text-muted-foreground">Upload a video above to get started.</p>
+			</div>
 		{:else}
 			<div class="flex h-24 items-center justify-center">
 				<span class="text-muted-foreground">No results found.</span>
