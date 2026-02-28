@@ -1,40 +1,52 @@
+"""
+Livestream Manager: manages real-time video capture, AI processing, and event broadcasting.
+
+Loads camera configuration (zones, classes, model) from the database when starting a stream.
+"""
+
 import asyncio
-import cv2
-import json
-import time
 import threading
-from typing import AsyncGenerator
-from collections import defaultdict
+import time
+import json
+import cv2
 from services.analytics_engine import AnalyticsEngine
+
 
 class LivestreamManager:
     def __init__(self):
         self.active_streams = {}  # camera_id -> StreamContext
         self.lock = threading.Lock()
 
-    def get_or_create_stream(self, camera_id: str):
+    def get_or_create_stream(self, camera_id: str, zones=None, classes=None, model_name="yolo11n"):
         with self.lock:
             if camera_id not in self.active_streams:
-                self.active_streams[camera_id] = StreamContext(camera_id)
+                self.active_streams[camera_id] = StreamContext(
+                    camera_id,
+                    zones=zones,
+                    classes=classes,
+                    model_name=model_name,
+                )
                 self.active_streams[camera_id].start()
             return self.active_streams[camera_id]
 
 class StreamContext:
-    def __init__(self, camera_id: str):
+    def __init__(self, camera_id: str, zones=None, classes=None, model_name="yolo11n"):
         self.camera_id = camera_id
-        # We will use asyncio.Queue for broadcasting to connected clients
-        # A list of queues, one for each connected client
         self.video_clients = []
         self.event_clients = []
         
-        self.engine = AnalyticsEngine(model_name="yolo11n")
+        # Initialize AnalyticsEngine with camera-specific config
+        self.engine = AnalyticsEngine(
+            model_name=model_name,
+            zones=zones,
+            full_frame_classes=classes,
+        )
         
         self._running = False
         self._thread = None
 
     def start(self):
         self._running = True
-        # Run the capture in a background thread to not block the asyncio event loop
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
 
@@ -44,14 +56,10 @@ class StreamContext:
             self._thread.join(timeout=2)
 
     def _capture_loop(self):
-        # Try to open webcam (0), fallback to a test video if needed
-        # For a real VMS this would be an RTSP URL. We'll try 0, then a fallback.
         cap = cv2.VideoCapture(0)
         
-        # If webcam fails, grab any sample video we have in cache
         if not cap.isOpened() or not cap.read()[0]:
             print(f"[Livestream] Cannot open webcam 0. Falling back to dummy feed.")
-            # For this prototype, we'll just yield a dummy image generating loop if no cam
             self._dummy_loop()
             return
 
@@ -63,10 +71,10 @@ class StreamContext:
             start_time = time.time()
             ret, frame = cap.read()
             if not ret:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # loop if it's a file
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
 
-            # Process AI
+            # Process AI with configured zones/classes
             result = self.engine.process_frame(frame)
             self.engine.draw_annotations(frame, result)
 
@@ -74,24 +82,32 @@ class StreamContext:
             ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
             if ret:
                 frame_bytes = buffer.tobytes()
-                # Broadcast to all video clients
                 for q in self.video_clients:
                     try:
                         q.put_nowait(frame_bytes)
                     except asyncio.QueueFull:
-                        pass # drop frame if client is too slow
+                        pass
 
-            # Generate Events based on detections
+            # Generate zone-aware events
             if result.boxes:
-                # We'll just generate simple events for any bounding box for the prototype
-                # Real implementation would do state-diff tracking (e.g. only emit on first entry)
                 events = []
                 for box in result.boxes:
+                    ev_type = "person" if box["class"] == 0 else "vehicle" if box["class"] in [2,3,5,7] else "motion"
+                    zone_name = box.get("in_zone", "Camera View") or "Camera View"
                     events.append({
-                        "type": "person" if box["class"] == 0 else "vehicle" if box["class"] in [2,3,5,7] else "alert",
+                        "type": ev_type,
                         "message": f"{box['label']} detected (Confidence: {box['conf']})",
-                        "zone": "Camera View", # fallback zone
-                        "timestamp": time.time()
+                        "zone": zone_name,
+                        "timestamp": time.time(),
+                    })
+                
+                # Also emit zone count updates
+                if result.zone_counts:
+                    events.append({
+                        "type": "zone_update",
+                        "zone_counts": result.zone_counts,
+                        "total_count": result.total_count,
+                        "timestamp": time.time(),
                     })
                 
                 for ev in events:
@@ -120,7 +136,7 @@ class StreamContext:
         while self._running:
             start_time = time.time()
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            frame[:] = (40, 40, 40) # dark gray
+            frame[:] = (40, 40, 40)
             
             x += dx
             y += dy

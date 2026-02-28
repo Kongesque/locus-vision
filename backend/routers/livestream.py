@@ -1,21 +1,64 @@
+"""
+Livestream router: MJPEG video stream and SSE events endpoints.
+
+Loads camera configuration from the database before creating streams,
+so zones, classes, and model settings are applied to the AI pipeline.
+"""
+
 import asyncio
+import json
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from services.livestream_manager import livestream_manager
+from database import get_db
 
 router = APIRouter(
     prefix="/api/livestream",
     tags=["livestream"],
 )
 
+
+async def _load_camera_config(camera_id: str):
+    """Load camera zones/classes/model from the database."""
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT * FROM cameras WHERE id = ?", (camera_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return None, None, "yolo11n"
+        
+        cam = dict(row)
+        zones = None
+        classes = None
+        model_name = cam.get("model_name", "yolo11n")
+
+        if cam.get("zones"):
+            try:
+                zones = json.loads(cam["zones"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        if cam.get("classes"):
+            try:
+                classes = json.loads(cam["classes"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return zones, classes, model_name
+    finally:
+        await db.close()
+
+
 @router.get("/{camera_id}/video")
 async def video_feed(camera_id: str, request: Request):
     """
     Returns a continuous MJPEG stream.
+    Loads camera config from DB to initialize zones/classes on first connect.
     """
-    stream_ctx = livestream_manager.get_or_create_stream(camera_id)
-    # Give the client a generous queue size of 30 frames (about 2 seconds at 15fps)
-    # If the network drops, we drop frames instead of backing up RAM.
+    zones, classes, model_name = await _load_camera_config(camera_id)
+    stream_ctx = livestream_manager.get_or_create_stream(
+        camera_id, zones=zones, classes=classes, model_name=model_name
+    )
     client_queue = asyncio.Queue(maxsize=30)
     stream_ctx.video_clients.append(client_queue)
     
@@ -24,10 +67,7 @@ async def video_feed(camera_id: str, request: Request):
             while True:
                 if await request.is_disconnected():
                     break
-                # Wait for the next frame from the queue
                 frame_bytes = await client_queue.get()
-                
-                # Format as MJPEG boundary
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         finally:
@@ -41,7 +81,10 @@ async def sse_events(camera_id: str, request: Request):
     """
     Returns a Server-Sent Events (SSE) stream of detection data.
     """
-    stream_ctx = livestream_manager.get_or_create_stream(camera_id)
+    zones, classes, model_name = await _load_camera_config(camera_id)
+    stream_ctx = livestream_manager.get_or_create_stream(
+        camera_id, zones=zones, classes=classes, model_name=model_name
+    )
     client_queue = asyncio.Queue(maxsize=100)
     stream_ctx.event_clients.append(client_queue)
 
@@ -51,7 +94,6 @@ async def sse_events(camera_id: str, request: Request):
                 if await request.is_disconnected():
                     break
                 event_json = await client_queue.get()
-                # Server-Sent Events format: 'data: {json}\n\n'
                 yield f"data: {event_json}\n\n"
         finally:
             stream_ctx.event_clients.remove(client_queue)

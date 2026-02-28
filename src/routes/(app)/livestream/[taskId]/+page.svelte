@@ -169,11 +169,19 @@
 			eventSource.onmessage = (event) => {
 				try {
 					const data = JSON.parse(event.data);
-					addActivityLog(data.message, data.type, data.zone);
 
-					// Slight randomization for dashboard liveliness based on AI events
-					trackCount += Math.floor(Math.random() * 3) - 1;
-					if (trackCount < 0) trackCount = 0;
+					if (data.type === 'zone_update') {
+						// Update zone counts and total from the backend's AnalyticsEngine
+						if (data.zone_counts) {
+							zoneCounts = { ...zoneCounts, ...data.zone_counts };
+						}
+						if (data.total_count !== undefined) {
+							trackCount = data.total_count;
+						}
+					} else {
+						// Regular detection event — add to activity log
+						addActivityLog(data.message, data.type, data.zone);
+					}
 				} catch (e) {
 					console.error('Failed to parse SSE event:', e);
 				}
