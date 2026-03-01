@@ -57,7 +57,10 @@
 			}
 
 			const constraints: MediaStreamConstraints = {
-				video: deviceId && deviceId !== 'default' ? { deviceId: { exact: deviceId } } : true
+				video:
+					deviceId && deviceId !== 'default'
+						? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+						: { width: { ideal: 1920 }, height: { ideal: 1080 } }
 			};
 
 			const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -94,7 +97,7 @@
 				if (!localStream) {
 					startWebcam(selectedDeviceId);
 				}
-			} else if (!isOpen && !connectionSuccess) {
+			} else if (!connectionSuccess) {
 				stopWebcam();
 			}
 		});
