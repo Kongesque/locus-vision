@@ -1,6 +1,6 @@
 """Pydantic models for request/response validation."""
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 import re
 
 
@@ -183,3 +183,4 @@ class CameraResponse(BaseModel):
     zones: str | None = None
     classes: str | None = None
     created_at: str
+    updated_at: str | None = None

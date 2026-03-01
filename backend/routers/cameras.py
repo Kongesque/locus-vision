@@ -86,6 +86,7 @@ async def update_camera(camera_id: str, update: CameraUpdate):
             return CameraResponse(**existing)
 
         set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause += ", updated_at = datetime('now')"
         values = list(updates.values()) + [camera_id]
 
         await db.execute(

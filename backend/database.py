@@ -79,7 +79,8 @@ async def init_db():
                 status      TEXT    NOT NULL DEFAULT 'active',
                 zones       TEXT    NULL,
                 classes     TEXT    NULL,
-                created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+                updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
         """)
@@ -100,7 +101,17 @@ async def init_db():
                     await db.execute(sql)
             await db.commit()
         except Exception as e:
-            print(f"Migration warning: {e}")
+            print(f"Migration warning (video_tasks): {e}")
+
+        # Migrate cameras table
+        try:
+            cursor = await db.execute("PRAGMA table_info(cameras)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            if "updated_at" not in columns:
+                await db.execute("ALTER TABLE cameras ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))")
+                await db.commit()
+        except Exception as e:
+            print(f"Migration warning (cameras): {e}")
 
     finally:
         await db.close()

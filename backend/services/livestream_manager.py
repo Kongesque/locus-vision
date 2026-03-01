@@ -151,7 +151,7 @@ class StreamContext:
                 frame_bytes = buffer.tobytes()
                 for q in self.video_clients:
                     try: q.put_nowait(frame_bytes)
-                    except: pass
+                    except Exception: pass
                     
             # Dummy event
             if x % 30 == 0:
