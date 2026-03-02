@@ -21,8 +21,9 @@ It is built to be local-first, privacy-centric, and highly optimized for edge de
 
 ## Features
 
-- **Edge-Optimized AI** — Lightweight ONNX Runtime inference (~15MB engine) replaces heavy PyTorch dependencies, halving the backend footprint for Raspberry Pi 5 deployment.
-- **Unified Analytics Engine** — Shared stateful object tracking (ByteTrack) and zone-based ROI counting logic.
+- **Edge-Optimized AI** — Lightweight ONNX Runtime inference (~15MB engine) with support for **INT8 and FP16 quantization**. Quantized models (via `export_model.py`) reduce footprint by up to 70% while boosting FPS on Raspberry Pi 5 hardware.
+- **Isolated Per-Camera Tracking** — Stateless inference engine coupled with local `ByteTrack` instances per stream. This architectural decouple ensures multi-stream safety and prevents object ID collision across concurrent feeds.
+- **Model Management & Discovery** — Dynamic backend discovery of `.onnx` models. Users can select and switch optimized models (e.g., switching from standard to INT8) directly via the Camera Settings UI.
 - **Directional Line Crossing** — A/B region virtual lines with mathematically accurate vector cross-product trajectory detection (A↔B, A→B, B→A).
 - **Video Analytics Job Queue** — Robust background job queue system for batch video uploads, sequential processing via a dedicated multiprocessing worker, and real-time progress tracking.
 - **Optimized Background Processing** — OS-level multiprocessing architecture bypassing the Python GIL, coupled with a motion detection pipeline to pre-filter static frames and optimize CPU usage.
@@ -65,6 +66,7 @@ Locus is under active development. Recent milestones include:
 - **Backend Infrastructure Audit**: Validated schema relationships, async db execution flows, and REST endpoints for maximum code quality.
 - **System & Media Management**: Introduced system storage statistics display, media deletion capabilities, theme mode selection, and complete user account deletion functionalities.
 - **Benchmarking Tools**: Optimizations to the benchmark script to accurately profile AI inference performance and deployment readiness on the Raspberry Pi 5.
+- **AI & Inference Refactor (March 2026)**: Decoupled detection from tracking to support stateless multi-stream processing. Integrated INT8/FP16 quantization pipelines and a dynamic model selection UI for effortless edge optimization.
 
 ## Quick Start
 
@@ -80,8 +82,17 @@ pip install -r requirements.txt
 cd ..
 
 # Start fullstack dev server (SvelteKit + FastAPI)
-pnpm dev
+- [x] cd ..
+- [x] pnpm dev
 ```
+
+### Model Optimization (Optional)
+To generate an optimized model for the Raspberry Pi 5 CPU:
+```sh
+source backend/.venv/bin/activate
+python backend/scripts/export_model.py yolo11n --int8
+```
+The new `yolo11n_int8` model will automatically appear in the Locus interface for selection.
 
 ## Scripts
 
