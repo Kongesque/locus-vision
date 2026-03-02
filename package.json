@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\" --kill-others --prefix-colors \"bgBlue.bold,bgMagenta.bold\"",
+		"dev": "concurrently \"pnpm run dev:frontend\" \"pnpm run dev:backend\" --kill-others --prefix-colors \"bgBlue.bold,bgMagenta.bold\"",
 		"dev:frontend": "vite dev",
 		"dev:backend": "cd backend && source .venv/bin/activate && uvicorn main:app --reload",
 		"build": "vite build",
