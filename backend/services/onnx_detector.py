@@ -266,3 +266,13 @@ def get_detector(model_name: str) -> OnnxDetector:
         print(f"[OnnxDetector] Loading model: {model_path}")
         _detector_cache[model_name] = OnnxDetector(model_path)
     return _detector_cache[model_name]
+
+
+def list_models() -> list[str]:
+    """List all available .onnx models in the models directory."""
+    models = []
+    if os.path.exists(MODELS_DIR):
+        for f in os.listdir(MODELS_DIR):
+            if f.endswith(".onnx"):
+                models.append(f.replace(".onnx", ""))
+    return sorted(models)

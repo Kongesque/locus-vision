@@ -9,9 +9,11 @@
 	import { goto } from '$app/navigation';
 	import { videoStore } from '$lib/stores/video.svelte';
 
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 
 	let open = $state(false);
+	let availableModels = $state<string[]>(['yolo11n']);
+	let selectedModel = $state('yolo11n');
 	let activeTab = $state('rtsp');
 	let isConnecting = $state(false);
 
@@ -130,6 +132,20 @@
 		};
 	}
 
+	onMount(async () => {
+		try {
+			const res = await fetch('http://localhost:8000/api/cameras/models');
+			if (res.ok) {
+				availableModels = await res.json();
+				if (availableModels.length > 0) {
+					selectedModel = availableModels.includes('yolo11n') ? 'yolo11n' : availableModels[0];
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch models:', err);
+		}
+	});
+
 	async function handleConnect() {
 		try {
 			isConnecting = true;
@@ -139,7 +155,8 @@
 				name: activeTab === 'webcam' ? webcamName || 'Webcam' : rtspName || 'RTSP Stream',
 				type: activeTab,
 				url: activeTab === 'rtsp' ? rtspUrl : null,
-				device_id: activeTab === 'webcam' ? selectedDeviceId || null : null
+				device_id: activeTab === 'webcam' ? selectedDeviceId || null : null,
+				model_name: selectedModel
 			};
 
 			// POST to backend to persist the camera
@@ -208,6 +225,17 @@
 					/>
 				</div>
 				<div class="space-y-2">
+					<Label for="model-selection-rtsp">Inference Model</Label>
+					<Select.Root type="single" bind:value={selectedModel} disabled={isConnecting}>
+						<Select.Trigger id="model-selection-rtsp" placeholder="Select AI Model" />
+						<Select.Content>
+							{#each availableModels as model}
+								<Select.Item value={model}>{model}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
 					<Label for="rtsp-url">Stream URL</Label>
 					<div class="flex gap-2">
 						<Input
@@ -254,6 +282,17 @@
 						bind:value={webcamName}
 						disabled={isConnecting}
 					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="model-selection-webcam">Inference Model</Label>
+					<Select.Root type="single" bind:value={selectedModel} disabled={isConnecting}>
+						<Select.Trigger id="model-selection-webcam" placeholder="Select AI Model" />
+						<Select.Content>
+							{#each availableModels as model}
+								<Select.Item value={model}>{model}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
 				</div>
 				<div class="space-y-2">
 					<Label for="device">Device</Label>

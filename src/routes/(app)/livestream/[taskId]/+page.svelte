@@ -30,8 +30,14 @@
 		MoveRight,
 		RotateCcw,
 		ImageIcon,
-		VideoOff
+		VideoOff,
+		Check,
+		Loader2
 	} from '@lucide/svelte';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import { onMount, onDestroy } from 'svelte';
 
 	const taskId = $derived($page.params.taskId);
@@ -51,6 +57,9 @@
 	let bitrate = $state('4.2 Mbps');
 	let errorMsg = $state<string | null>(null);
 	let uptime = $state('--:--:--');
+	let isSaving = $state(false);
+	let isSettingsOpen = $state(false);
+	let availableModels = $state<string[]>([]);
 
 	// ─── Detection State (loaded from backend) ───
 	let zones = $state<any[]>([]);
@@ -103,6 +112,43 @@
 		} catch (err) {
 			errorMsg = 'Failed to connect to backend';
 			cameraStatus = 'error';
+		}
+	}
+
+	async function fetchAvailableModels() {
+		try {
+			const res = await fetch('http://localhost:8000/api/cameras/models');
+			if (res.ok) {
+				availableModels = await res.json();
+			}
+		} catch (err) {
+			console.error('Failed to fetch models:', err);
+		}
+	}
+
+	async function saveSettings() {
+		try {
+			isSaving = true;
+			const res = await fetch(`http://localhost:8000/api/cameras/${taskId}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: cameraName,
+					model_name: modelName
+				})
+			});
+			if (res.ok) {
+				isSettingsOpen = false;
+				// The stream session should probably be restarted to apply the certain model changes
+				// but for now we just update the UI state.
+			} else {
+				alert('Failed to save settings');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Error saving settings');
+		} finally {
+			isSaving = false;
 		}
 	}
 
@@ -302,6 +348,7 @@
 	// ─── Lifecycle ───
 	onMount(() => {
 		fetchCameraInfo();
+		fetchAvailableModels();
 
 		clockInterval = setInterval(() => {
 			currentTime = new Date();
@@ -408,7 +455,9 @@
 				variant="ghost"
 				size="icon"
 				class="size-8"
-				onclick={() => console.log('TODO: Camera settings')}
+				onclick={() => {
+					isSettingsOpen = true;
+				}}
 			>
 				<Settings class="size-4" />
 			</Button>
@@ -835,3 +884,46 @@
 		</div>
 	</footer>
 </div>
+
+<Dialog.Root bind:open={isSettingsOpen}>
+	<Dialog.Content class="sm:max-w-[425px]">
+		<Dialog.Header>
+			<Dialog.Title>Camera Settings</Dialog.Title>
+			<Dialog.Description>Update camera name and AI model configuration.</Dialog.Description>
+		</Dialog.Header>
+
+		<div class="grid gap-4 py-4">
+			<div class="grid gap-2">
+				<Label for="name">Camera Name</Label>
+				<Input id="name" bind:value={cameraName} placeholder="e.g. Front Door" />
+			</div>
+			<div class="grid gap-2">
+				<Label for="model">Inference Model</Label>
+				<Select.Root type="single" bind:value={modelName}>
+					<Select.Trigger id="model" placeholder="Select AI Model" />
+					<Select.Content>
+						{#each availableModels as model}
+							<Select.Item value={model}>{model}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<p class="text-[10px] text-muted-foreground">
+					Model changes will apply next time the stream is started.
+				</p>
+			</div>
+		</div>
+
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (isSettingsOpen = false)}>Cancel</Button>
+			<Button onclick={saveSettings} disabled={isSaving}>
+				{#if isSaving}
+					<Loader2 class="mr-2 size-4 animate-spin" />
+					Saving...
+				{:else}
+					<Check class="mr-2 size-4" />
+					Save Changes
+				{/if}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
