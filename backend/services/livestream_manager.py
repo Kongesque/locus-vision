@@ -2,6 +2,7 @@
 Livestream Manager: manages real-time video capture, AI processing, and event broadcasting.
 
 Loads camera configuration (zones, classes, model) from the database when starting a stream.
+Also buffers telemetry events and flushes them to DuckDB for analytics.
 """
 
 import asyncio
@@ -9,8 +10,10 @@ import threading
 import time
 import json
 import cv2
+from datetime import datetime
 from services.analytics_engine import AnalyticsEngine
 from services.metrics_collector import metrics_collector
+from services.duckdb_client import client as db_client
 
 
 class LivestreamManager:
@@ -36,25 +39,26 @@ class StreamContext:
         self.video_clients = []
         self.event_clients = []
         
-        # Initialize AnalyticsEngine with camera-specific config
         self.engine = AnalyticsEngine(
             model_name=model_name,
             zones=zones,
             full_frame_classes=classes,
+            mode="live",
+            camera_id=camera_id
         )
         
         self._running = False
         self._thread = None
-        
-        # Frame timing metrics for FPS calculation
         self._frame_count = 0
-        self._frame_times = []
-        self._fps_calc_interval = 5  # Calculate FPS every 5 seconds
-        self._last_fps_calc = time.time()
+        
+        # Telemetry Buffers for DuckDB
+        self.zone_events_buffer = []
+        self.line_events_buffer = []
+        self.track_events_buffer = []
+        self._last_db_flush = time.time()
 
     def start(self):
         self._running = True
-        # Register with metrics collector
         metrics_collector.register_camera(self.camera_id)
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
@@ -63,8 +67,21 @@ class StreamContext:
         self._running = False
         if self._thread:
             self._thread.join(timeout=2)
-        # Unregister from metrics collector
         metrics_collector.unregister_camera(self.camera_id)
+        # Final flush
+        self._flush_duckdb()
+
+    def _flush_duckdb(self):
+        try:
+            db_client.insert_zone_events(self.zone_events_buffer)
+            db_client.insert_line_events(self.line_events_buffer)
+            db_client.insert_object_tracks(self.track_events_buffer)
+        except Exception as e:
+            print(f"[Livestream] DuckDB flush failed: {e}")
+        finally:
+            self.zone_events_buffer.clear()
+            self.line_events_buffer.clear()
+            self.track_events_buffer.clear()
 
     def _capture_loop(self):
         cap = cv2.VideoCapture(0)
@@ -76,10 +93,7 @@ class StreamContext:
 
         target_fps = 15
         frame_interval = 1.0 / target_fps
-        
-        # Track frame timing for FPS calculation
         frame_times = []
-        last_frame_time = time.time()
 
         print(f"[Livestream] Started capture on {self.camera_id}")
         while self._running:
@@ -89,76 +103,86 @@ class StreamContext:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
             
-            # Calculate input FPS based on time between frames
             current_time = time.time()
             frame_times.append(current_time)
-            # Keep only last 30 frames for FPS calc
             if len(frame_times) > 30:
                 frame_times.pop(0)
             if len(frame_times) >= 2:
                 input_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
                 metrics_collector.update_camera_input_fps(self.camera_id, input_fps)
 
-            # Process AI with configured zones/classes
-            result = self.engine.process_frame(frame)
+            # Process AI
+            result = self.engine.process_frame(frame, current_time=current_time)
             self.engine.draw_annotations(frame, result)
-            
-            # Track that a frame was processed
             self._frame_count += 1
+
+            # Buffer telemetry for DuckDB
+            for ze in result.zone_events:
+                self.zone_events_buffer.append(
+                    (datetime.fromtimestamp(ze["timestamp"]), ze["camera_id"], ze["zone_id"], ze["event_type"], ze["track_id"], ze["dwell_time"])
+                )
+            for le in result.line_events:
+                self.line_events_buffer.append(
+                    (datetime.fromtimestamp(le["timestamp"]), le["camera_id"], le["line_id"], le["direction"], le["track_id"])
+                )
+            for te in result.track_events:
+                self.track_events_buffer.append(
+                    (datetime.fromtimestamp(te["timestamp"]), te["camera_id"], te["track_id"], te["class_id"], te["x"], te["y"])
+                )
+
+            # Flush every 5 seconds
+            if current_time - self._last_db_flush > 5.0:
+                self._flush_duckdb()
+                self._last_db_flush = current_time
 
             # Encode to JPEG
             ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
             if ret:
                 frame_bytes = buffer.tobytes()
                 for q in self.video_clients:
-                    try:
-                        q.put_nowait(frame_bytes)
-                    except asyncio.QueueFull:
-                        pass
+                    try: q.put_nowait(frame_bytes)
+                    except asyncio.QueueFull: pass
                 
-                # Record frame processing (Frigate-style metrics)
-                has_detections = len(result.boxes) > 0
                 metrics_collector.record_camera_frame(
                     self.camera_id, 
                     processed=True,
-                    had_detection=has_detections
+                    had_detection=len(result.boxes) > 0
                 )
             else:
-                # Frame encoding failed - count as dropped
-                metrics_collector.record_camera_frame(
-                    self.camera_id,
-                    processed=False
-                )
+                metrics_collector.record_camera_frame(self.camera_id, processed=False)
 
-            # Generate zone-aware events
-            if result.boxes:
-                events = []
-                for box in result.boxes:
-                    zone_name = box.get("in_zone", "Camera View") or "Camera View"
-                    events.append({
-                        "type": box["label"].lower(),
-                        "message": f"{box['label']} detected (Confidence: {box['conf']})",
-                        "zone": zone_name,
-                        "timestamp": time.time(),
-                    })
+            # Generate real-time events for SSE
+            ws_events = []
+            
+            # Simple object detection events
+            for box in result.boxes:
+                zone_name = box.get("in_zone", "Camera View") or "Camera View"
+                dwell_str = f" (Dwell: {box.get('dwell_time', 0.0):.1f}s)" if box.get("dwell_time") else ""
+                ws_events.append({
+                    "type": box["label"].lower(),
+                    "message": f"{box['label']} detected{dwell_str}",
+                    "zone": zone_name,
+                    "timestamp": current_time,
+                })
                 
-                # Also emit zone count updates
-                if result.zone_counts:
-                    events.append({
-                        "type": "zone_update",
-                        "zone_counts": result.zone_counts,
-                        "total_count": result.total_count,
-                        "timestamp": time.time(),
-                    })
+            # Analytics alerts (wrong_way, capacity_warning)
+            for alert in result.alerts:
+                ws_events.append(alert)
                 
-                for ev in events:
-                    for q in self.event_clients:
-                        try:
-                            q.put_nowait(json.dumps(ev))
-                        except asyncio.QueueFull:
-                            pass
+            # Zone counts update
+            if result.zone_counts:
+                ws_events.append({
+                    "type": "zone_update",
+                    "zone_counts": result.zone_counts,
+                    "total_count": result.total_count,
+                    "timestamp": current_time,
+                })
+                
+            for ev in ws_events:
+                for q in self.event_clients:
+                    try: q.put_nowait(json.dumps(ev))
+                    except asyncio.QueueFull: pass
 
-            # Sleep to maintain fps
             elapsed = time.time() - loop_start
             sleep_time = frame_interval - elapsed
             if sleep_time > 0:
@@ -167,29 +191,16 @@ class StreamContext:
         cap.release()
 
     def _dummy_loop(self):
-        """Fallback loop that generates a bouncing color box if no video source is available."""
         import numpy as np
         target_fps = 10
         frame_interval = 1.0 / target_fps
         x, y = 100, 100
         dx, dy = 15, 15
         
-        # Track frame timing for FPS calculation
-        frame_times = []
-        
         while self._running:
             start_time = time.time()
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
             frame[:] = (40, 40, 40)
-            
-            # Calculate input FPS
-            current_time = time.time()
-            frame_times.append(current_time)
-            if len(frame_times) > 30:
-                frame_times.pop(0)
-            if len(frame_times) >= 2:
-                input_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
-                metrics_collector.update_camera_input_fps(self.camera_id, input_fps)
             
             x += dx
             y += dy
@@ -205,14 +216,7 @@ class StreamContext:
                 for q in self.video_clients:
                     try: q.put_nowait(frame_bytes)
                     except Exception: pass
-                
-                # Record frame processing for dummy feed
-                metrics_collector.record_camera_frame(
-                    self.camera_id,
-                    processed=True
-                )
                     
-            # Dummy event
             if x % 30 == 0:
                 ev = {"type": "alert", "message": "Dummy motion detected", "zone": "Fallback", "timestamp": time.time()}
                 for q in self.event_clients:

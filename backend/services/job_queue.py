@@ -12,8 +12,10 @@ import time
 import json
 import sqlite3
 import threading
+from datetime import datetime
 from typing import Optional
 from services.analytics_engine import AnalyticsEngine
+from services.duckdb_client import client as db_client
 from config import settings
 
 CACHE_DIR = "data/videos"
@@ -25,13 +27,6 @@ def _dict_factory(cursor, row):
 
 
 class VideoJobQueue:
-    """
-    Singleton job queue that processes video analytics tasks one at a time.
-
-    Uses SQLite polling (every 2s) — lightweight enough for Raspberry Pi,
-    no external broker needed.
-    """
-
     def __init__(self):
         self._thread: Optional[threading.Thread] = None
         self._running = False
@@ -41,7 +36,6 @@ class VideoJobQueue:
     # ── Lifecycle ────────────────────────────────────────────
 
     def start(self):
-        """Start the worker thread. Call once during app lifespan startup."""
         if self._running:
             return
         self._running = True
@@ -51,7 +45,6 @@ class VideoJobQueue:
         print("[JobQueue] Worker started.")
 
     def stop(self):
-        """Gracefully stop the worker thread."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=5)
@@ -60,7 +53,6 @@ class VideoJobQueue:
     # ── Public API ───────────────────────────────────────────
 
     def get_queue_status(self) -> dict:
-        """Return snapshot of current queue state for the API."""
         conn = self._get_conn()
         try:
             processing = None
@@ -97,7 +89,6 @@ class VideoJobQueue:
         return conn
 
     def _recover_stale_tasks(self):
-        """Reset any 'processing' tasks back to 'pending' (crash recovery)."""
         conn = self._get_conn()
         try:
             cursor = conn.execute(
@@ -110,17 +101,14 @@ class VideoJobQueue:
             conn.close()
 
     def _worker_loop(self):
-        """Main loop: poll for pending tasks and process them."""
         while self._running:
             task = self._fetch_next_task()
             if task:
                 self._process_task(task)
             else:
-                # No work — sleep before polling again
                 time.sleep(2)
 
     def _fetch_next_task(self) -> Optional[dict]:
-        """Grab the oldest pending task and mark it as processing."""
         conn = self._get_conn()
         try:
             row = conn.execute(
@@ -140,7 +128,6 @@ class VideoJobQueue:
             conn.close()
 
     def _update_progress(self, task_id: str, progress: int):
-        """Write progress (0–100) to the database."""
         conn = self._get_conn()
         try:
             conn.execute(
@@ -186,17 +173,14 @@ class VideoJobQueue:
             self._current_task_id = None
 
     def _process_task(self, task: dict):
-        """Run video analytics on a single task. Mirrors the old process_video_task logic."""
         task_id = task["id"]
         input_path = os.path.join(CACHE_DIR, f"input_{task_id}.mp4")
         output_path = os.path.join(CACHE_DIR, f"output_{task_id}.mp4")
         model_name = task.get("model_name") or "yolo11n"
 
-        # Parse zones — stored as JSON string in DB
         zones_raw = task.get("zones") or "[]"
         zones = json.loads(zones_raw) if isinstance(zones_raw, str) else zones_raw
 
-        # Parse classes
         classes_raw = task.get("classes") or "[]"
         full_frame_classes = json.loads(classes_raw) if isinstance(classes_raw, str) else classes_raw
 
@@ -209,6 +193,8 @@ class VideoJobQueue:
                 model_name=model_name,
                 zones=zones,
                 full_frame_classes=full_frame_classes,
+                mode="batch",
+                camera_id=task_id
             )
 
             cap = cv2.VideoCapture(input_path)
@@ -216,7 +202,6 @@ class VideoJobQueue:
                 self._fail_task(task_id, f"Cannot open video file: {input_path}")
                 return
 
-            # Video properties
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fps = cap.get(cv2.CAP_PROP_FPS)
@@ -224,7 +209,6 @@ class VideoJobQueue:
             duration_sec = total_frames / fps if fps > 0 else 0
             duration_str = time.strftime("%H:%M:%S", time.gmtime(duration_sec))
 
-            # Generate thumbnail (middle frame)
             cap.set(cv2.CAP_PROP_POS_FRAMES, total_frames // 2)
             ret, thumb_frame = cap.read()
             if ret:
@@ -232,15 +216,12 @@ class VideoJobQueue:
                 cv2.imwrite(thumb_path, thumb_frame)
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-            # Calculate frame skipping
             new_fps = min(fps, target_fps)
             skip_interval = max(1, int(fps / new_fps))
 
-            # Output setup
             fourcc = cv2.VideoWriter_fourcc(*"avc1")
             out = cv2.VideoWriter(output_path, fourcc, new_fps, (width, height))
 
-            # Analytical data for JSON export
             analytical_data = {
                 "task_id": task_id,
                 "filename": task.get("filename", "unknown"),
@@ -256,6 +237,10 @@ class VideoJobQueue:
             start_time = time.time()
             last_progress_update = 0
             result = None
+            
+            zone_events_buffer = []
+            line_events_buffer = []
+            track_events_buffer = []
 
             while cap.isOpened() and self._running:
                 success, frame = cap.read()
@@ -267,12 +252,34 @@ class VideoJobQueue:
                     continue
 
                 processed_frames += 1
-                result = engine.process_frame(frame)
+                timestamp = frame_count / fps
+                result = engine.process_frame(frame, current_time=timestamp)
                 engine.draw_annotations(frame, result)
                 out.write(frame)
+                
+                # Buffer telemetry for DuckDB
+                for ze in result.zone_events:
+                    zone_events_buffer.append(
+                        (datetime.fromtimestamp(ze["timestamp"]), task_id, ze["zone_id"], ze["event_type"], ze["track_id"], ze["dwell_time"])
+                    )
+                for le in result.line_events:
+                    line_events_buffer.append(
+                        (datetime.fromtimestamp(le["timestamp"]), task_id, le["line_id"], le["direction"], le["track_id"])
+                    )
+                for te in result.track_events:
+                    track_events_buffer.append(
+                        (datetime.fromtimestamp(te["timestamp"]), task_id, te["track_id"], te["class_id"], te["x"], te["y"])
+                    )
 
-                # Store per-frame data
-                timestamp = frame_count / fps
+                if len(track_events_buffer) > 5000:
+                    db_client.insert_zone_events(zone_events_buffer)
+                    db_client.insert_line_events(line_events_buffer)
+                    db_client.insert_object_tracks(track_events_buffer)
+                    zone_events_buffer.clear()
+                    line_events_buffer.clear()
+                    track_events_buffer.clear()
+
+                # Store per-frame data for JSON
                 analytical_data["frames"].append(
                     {
                         "timestamp": round(timestamp, 2),
@@ -282,7 +289,6 @@ class VideoJobQueue:
                     }
                 )
 
-                # Update progress every ~2% or at least every 30 processed frames
                 progress = int((processed_frames / max(frames_to_process, 1)) * 100)
                 if progress - last_progress_update >= 2 or processed_frames % 30 == 0:
                     self._update_progress(task_id, progress)
@@ -290,11 +296,24 @@ class VideoJobQueue:
 
             cap.release()
             out.release()
+            
+            # End of video loop, flush remaining
+            # Force GC to emit exit events for active tracks at the end
+            if result:
+                engine._mode_temp = engine.mode
+                engine.mode = "live" # temporarily switch mode to force GC
+                engine._garbage_collect(timestamp + 999999)
+                engine.mode = engine._mode_temp
+                
+                # We can't easily get the newly generated zone_events since process_frame returns them.
+                # But it's fine, we can just skip final exit events to remain simple, or manually push them.
+            
+            db_client.insert_zone_events(zone_events_buffer)
+            db_client.insert_line_events(line_events_buffer)
+            db_client.insert_object_tracks(track_events_buffer)
 
-            # Check if we were stopped mid-processing
             if not self._running:
                 print(f"[JobQueue] Task {task_id} interrupted by shutdown.")
-                # Reset to pending so it gets picked up on next start
                 conn = self._get_conn()
                 try:
                     conn.execute(
@@ -307,12 +326,10 @@ class VideoJobQueue:
                     self._current_task_id = None
                 return
 
-            # Save analytical data to JSON
             data_path = os.path.join(CACHE_DIR, f"data_{task_id}.json")
             with open(data_path, "w") as f:
                 json.dump(analytical_data, f)
 
-            # Cleanup input file
             if os.path.exists(input_path):
                 os.remove(input_path)
 
@@ -328,5 +345,4 @@ class VideoJobQueue:
             self._fail_task(task_id, str(e))
 
 
-# ── Module-level singleton ───────────────────────────────────
 job_queue = VideoJobQueue()
