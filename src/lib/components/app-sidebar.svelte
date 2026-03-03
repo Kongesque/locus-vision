@@ -56,6 +56,16 @@
 						{/snippet}
 					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
+				<Sidebar.MenuItem>
+					<Sidebar.MenuButton tooltipContent="Historical Analytics">
+						{#snippet child({ props })}
+							<a href="/analytics" {...props}>
+								<Activity />
+								<span>Historical Analytics</span>
+							</a>
+						{/snippet}
+					</Sidebar.MenuButton>
+				</Sidebar.MenuItem>
 			</Sidebar.Menu>
 		</Sidebar.Group>
 	</Sidebar.Content>

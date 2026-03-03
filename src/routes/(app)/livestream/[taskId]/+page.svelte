@@ -185,6 +185,12 @@
 		const config: Record<string, { label: string; color: string; bgColor: string }> = {
 			zone: { label: 'Zone Entry', color: 'text-purple-400', bgColor: 'bg-purple-500/15' },
 			alert: { label: 'Alert', color: 'text-red-400', bgColor: 'bg-red-500/15' },
+			capacity_warning: {
+				label: 'Capacity Warning',
+				color: 'text-rose-500',
+				bgColor: 'bg-rose-500/20'
+			},
+			wrong_way: { label: 'Wrong Way', color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
 			motion: { label: 'Motion', color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' }
 		};
 
@@ -218,7 +224,12 @@
 		const newEvent: ActivityEvent = { time: timeStr, message, type, zone, id: crypto.randomUUID() };
 
 		// Trigger highlight for high-priority events
-		if (type === 'alert' || type === 'zone') {
+		if (
+			type === 'alert' ||
+			type === 'zone' ||
+			type === 'capacity_warning' ||
+			type === 'wrong_way'
+		) {
 			hasActiveAlert = true;
 			if (alertTimeout) clearTimeout(alertTimeout);
 			alertTimeout = setTimeout(() => {
@@ -835,7 +846,7 @@
 												<Activity class="size-3 {config.color}" />
 											{:else if log.type === 'zone'}
 												<Shield class="size-3 {config.color}" />
-											{:else if log.type === 'alert'}
+											{:else if log.type === 'alert' || log.type === 'capacity_warning' || log.type === 'wrong_way'}
 												<AlertTriangle class="size-3 {config.color}" />
 											{:else}
 												<!-- Generic fallback for arbitrary dynamic YOLO classes -->

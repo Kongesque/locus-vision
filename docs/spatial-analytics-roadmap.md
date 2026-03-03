@@ -42,29 +42,29 @@
 
 **1.1 Enhanced Zone Analytics**
 ```
-- [ ] Zone dwell time (how long objects stay in zone)
-- [ ] Zone entry/exit timestamps
-- [ ] Zone occupancy (current count in zone)
-- [ ] Zone capacity alerts (80% full, etc.)
+- [x] Zone dwell time (how long objects stay in zone)
+- [x] Zone entry/exit timestamps
+- [ ] Zone occupancy (current count in zone) - Frontend tracking needed
+- [x] Zone capacity alerts (80% full, etc.)
 - [ ] Zone groups (combine multiple zones)
 - [ ] Nested zones (zone within zone)
 ```
 
 **1.2 Line Analytics**
 ```
-- [ ] Multi-line support with naming
+- [x] Multi-line support with naming
 - [ ] Line crossing velocity (speed estimation)
-- [ ] Line crossing direction heatmap
+- [x] Line crossing direction heatmap (Data tracked, UI needed)
 - [ ] Peak crossing times
 - [ ] Time-between-crossings (flow rate)
 ```
 
 **1.3 Object Tracking & Behavior**
 ```
-- [ ] Object trajectory recording (path history)
+- [x] Object trajectory recording (path history - tracked in DuckDB)
 - [ ] Average speed per zone
-- [ ] Direction of movement (N/E/S/W)
-- [ ] Object classification persistence (track "person" across zones)
+- [x] Direction of movement (N/E/S/W - anomaly tracking implemented)
+- [x] Object classification persistence (track "person" across zones)
 - [ ] Group detection (people moving together)
 ```
 
