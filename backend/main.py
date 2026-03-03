@@ -16,6 +16,8 @@ from routers.metrics import router as metrics_router
 
 from services.job_queue import job_queue
 from services.metrics_collector import metrics_collector
+from services.downsampler import downsampler
+from services.archiver import archiver
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,11 +30,17 @@ async def lifespan(app: FastAPI):
     # Start the metrics collector
     await metrics_collector.start()
     
+    # Start the data downsampler and archiver
+    downsampler.start()
+    archiver.start()
+    
     yield
     
     # Cleanup background workers on shutdown
     job_queue.stop()
     metrics_collector.stop()
+    downsampler.stop()
+    archiver.stop()
 
 
 app = FastAPI(
