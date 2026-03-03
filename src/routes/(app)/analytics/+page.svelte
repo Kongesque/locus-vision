@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Activity, Download, Calendar, Map, BarChart3, Users, Clock } from 'lucide-svelte';
+	import { Activity, Download, Calendar, Map, BarChart3, Users, Clock } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
