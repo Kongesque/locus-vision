@@ -31,7 +31,7 @@
 	<title>Settings · Locus</title>
 </svelte:head>
 
-<div class="flex max-w-4xl flex-1 flex-col gap-6 p-4 md:p-6">
+<div class="flex w-full flex-1 flex-col gap-6 p-4 md:p-6">
 	<PageTitle2 />
 
 	<!-- ═══════════════════════════════════════════════════ -->
