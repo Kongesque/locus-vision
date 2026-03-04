@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Eye, EyeOff } from '@lucide/svelte';
+	import { Eye, EyeOff, Info } from '@lucide/svelte';
 	import Echo from '$lib/components/svg/echo.svelte';
 
 	let { form } = $props();
@@ -25,8 +25,9 @@
 	<div class="flex flex-1 items-center justify-center px-6 pb-20">
 		<div class="w-full max-w-md space-y-4">
 			<h1 class="text-center text-2xl font-semibold">Get started with Locus Vision</h1>
-			<p class="text-center text-sm text-muted-foreground">
-				Create your admin account to get started.
+			<p class="flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+				<Info class="size-3" />
+				Your data stays local. Nothing is sent to external servers.
 			</p>
 
 			{#if form?.error}
