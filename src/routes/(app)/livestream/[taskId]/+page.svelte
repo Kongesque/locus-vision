@@ -990,7 +990,7 @@
 				Are you sure you want to delete <strong>{cameraName}</strong>? This action cannot be undone.
 			</Dialog.Description>
 		</Dialog.Header>
-		<Dialog.Footer class="gap-2 sm:gap-0">
+		<Dialog.Footer class="gap-2 sm:justify-end">
 			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
 			<Button variant="destructive" onclick={deleteCamera} disabled={isDeleting}>
 				{#if isDeleting}

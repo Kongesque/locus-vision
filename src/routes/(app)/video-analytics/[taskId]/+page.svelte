@@ -958,7 +958,7 @@
 				cannot be undone.
 			</Dialog.Description>
 		</Dialog.Header>
-		<Dialog.Footer class="gap-2 sm:gap-0">
+		<Dialog.Footer class="gap-2 sm:justify-end">
 			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
 			<Button variant="destructive" onclick={deleteTask} disabled={isDeleting}>
 				{#if isDeleting}
