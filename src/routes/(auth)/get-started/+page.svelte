@@ -23,7 +23,7 @@
 
 	<!-- Form centered -->
 	<div class="flex flex-1 items-center justify-center px-6 pb-20">
-		<div class="w-full max-w-md space-y-4">
+		<div class="w-full max-w-md space-y-2">
 			<h1 class="text-center text-2xl font-semibold">Get started with Locus Vision</h1>
 			<p class="flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
 				<Info class="size-3" />
@@ -47,32 +47,32 @@
 					};
 				}}
 			>
-				<div>
-					<label for="name" class="text-sm font-semibold">Name</label>
+				<div class="space-y-2">
+					<label for="name" class="text-sm font-semibold cursor-pointer">Name</label>
 					<Input
 						id="name"
 						name="name"
 						type="text"
 						placeholder="Enter Your Full Name"
 						value={form?.name ?? ''}
-						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
+						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent cursor-text"
 					/>
 				</div>
 
-				<div>
-					<label for="email" class="text-sm font-semibold">Email</label>
+				<div class="space-y-2">
+					<label for="email" class="text-sm font-semibold cursor-pointer">Email</label>
 					<Input
 						id="email"
 						name="email"
 						type="email"
 						placeholder="Enter Your Email"
 						value={form?.email ?? ''}
-						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent"
+						class="rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-0 dark:bg-transparent cursor-text"
 					/>
 				</div>
 
-				<div>
-					<label for="password" class="text-sm font-semibold">Password</label>
+				<div class="space-y-2">
+					<label for="password" class="text-sm font-semibold cursor-pointer">Password</label>
 					<div class="relative">
 						<Input
 							id="password"
@@ -83,7 +83,7 @@
 						/>
 						<button
 							type="button"
-							class="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+							class="absolute top-1/2 right-0 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
 							onclick={() => (showPassword = !showPassword)}
 						>
 							{#if showPassword}
@@ -98,7 +98,7 @@
 				<Button
 					type="submit"
 					disabled={loading}
-					class="w-full rounded-full bg-muted text-foreground shadow-none hover:bg-muted/80"
+					class="w-full rounded-full bg-muted text-foreground shadow-none hover:bg-muted/80 cursor-pointer"
 				>
 					{loading ? 'Setting up...' : 'Create Admin Account'}
 				</Button>
