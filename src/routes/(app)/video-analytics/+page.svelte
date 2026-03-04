@@ -4,12 +4,21 @@
 	import SearchInput from '$lib/components/video-analytics/search-input.svelte';
 	import VideoCard from '$lib/components/video-analytics/video-card.svelte';
 	import QueueStatus from '$lib/components/video-analytics/queue-status.svelte';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { AlertTriangle, Loader2, Trash2 } from '@lucide/svelte';
 	import { onMount, onDestroy, untrack } from 'svelte';
 
 	let { data } = $props();
 	let history = $state<any[]>(untrack(() => data.history || []));
 	let searchQuery = $state('');
 	let refreshTimer: ReturnType<typeof setInterval>;
+
+	// Delete dialog state
+	let isDeleteDialogOpen = $state(false);
+	let taskToDelete: any = $state(null);
+	let isDeleting = $state(false);
+	let deleteError = $state('');
 
 	let filteredHistory = $derived(
 		history.filter((item: any) =>
@@ -41,8 +50,37 @@
 		console.log('Download');
 	}
 
-	function handleDelete() {
-		console.log('Delete');
+	function openDeleteDialog(task: any) {
+		taskToDelete = task;
+		deleteError = '';
+		isDeleteDialogOpen = true;
+	}
+
+	async function deleteTask() {
+		if (!taskToDelete) return;
+
+		isDeleting = true;
+		deleteError = '';
+
+		try {
+			const res = await fetch(`http://127.0.0.1:8000/api/video/${taskToDelete.id}`, {
+				method: 'DELETE'
+			});
+
+			if (res.ok) {
+				// Remove from local state
+				history = history.filter((item) => item.id !== taskToDelete.id);
+				isDeleteDialogOpen = false;
+				taskToDelete = null;
+			} else {
+				const data = await res.json();
+				deleteError = data.detail || 'Failed to delete task';
+			}
+		} catch (e) {
+			deleteError = 'Network error. Please try again.';
+		} finally {
+			isDeleting = false;
+		}
 	}
 </script>
 
@@ -71,7 +109,7 @@
 						progress={item.progress || 0}
 						thumbnail={`http://127.0.0.1:8000/api/video/${item.id}/thumbnail`}
 						onDownload={handleDownload}
-						onDelete={handleDelete}
+						onDelete={() => openDeleteDialog(item)}
 					/>
 				{/each}
 			</div>
@@ -89,3 +127,34 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Delete Confirmation Dialog -->
+<Dialog.Root bind:open={isDeleteDialogOpen}>
+	<Dialog.Content class="sm:max-w-[400px]">
+		<Dialog.Header>
+			<Dialog.Title class="flex items-center gap-2 text-red-600">
+				<AlertTriangle class="size-5" />
+				Delete Task
+			</Dialog.Title>
+			<Dialog.Description>
+				Are you sure you want to delete <strong>{taskToDelete?.filename || 'this task'}</strong>? This
+				action cannot be undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		{#if deleteError}
+			<div class="text-sm text-red-600">{deleteError}</div>
+		{/if}
+		<Dialog.Footer class="gap-2 sm:justify-end">
+			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
+			<Button variant="destructive" onclick={deleteTask} disabled={isDeleting}>
+				{#if isDeleting}
+					<Loader2 class="mr-2 size-4 animate-spin" />
+					Deleting...
+				{:else}
+					<Trash2 class="mr-2 size-4" />
+					Delete Task
+				{/if}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
