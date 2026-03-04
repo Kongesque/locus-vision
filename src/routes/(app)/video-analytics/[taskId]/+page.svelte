@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import {
 		ChevronLeft,
 		Loader2,
@@ -19,7 +22,10 @@
 		HardDrive,
 		Layers,
 		SkipBack,
-		SkipForward
+		SkipForward,
+		Settings,
+		Trash2,
+		MoreVertical
 	} from '@lucide/svelte';
 	import { onMount, onDestroy } from 'svelte';
 
@@ -324,6 +330,29 @@
 	}
 
 	let taskProgress = $state(0);
+	let isDeleteDialogOpen = $state(false);
+	let isDeleting = $state(false);
+
+	async function deleteTask() {
+		try {
+			isDeleting = true;
+			const res = await fetch(`http://localhost:8000/api/video/${taskId}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) {
+				goto('/video-analytics');
+			} else {
+				const data = await res.json();
+				alert(data.detail || 'Failed to delete task');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Error deleting task');
+		} finally {
+			isDeleting = false;
+			isDeleteDialogOpen = false;
+		}
+	}
 
 	async function checkStatus() {
 		if (status === 'ready') return;
@@ -897,3 +926,31 @@
 		</div>
 	</footer>
 </div>
+
+<!-- Delete Confirmation Dialog -->
+<Dialog.Root bind:open={isDeleteDialogOpen}>
+	<Dialog.Content class="sm:max-w-[400px]">
+		<Dialog.Header>
+			<Dialog.Title class="flex items-center gap-2 text-red-600">
+				<AlertTriangle class="size-5" />
+				Delete Task
+			</Dialog.Title>
+			<Dialog.Description>
+				Are you sure you want to delete <strong>{task?.filename || 'this task'}</strong>? This action
+				cannot be undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="gap-2 sm:gap-0">
+			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
+			<Button variant="destructive" onclick={deleteTask} disabled={isDeleting}>
+				{#if isDeleting}
+					<Loader2 class="mr-2 size-4 animate-spin" />
+					Deleting...
+				{:else}
+					<Trash2 class="mr-2 size-4" />
+					Delete Task
+				{/if}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

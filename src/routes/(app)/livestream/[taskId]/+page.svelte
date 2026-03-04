@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
 		ChevronLeft,
@@ -32,7 +33,8 @@
 		ImageIcon,
 		VideoOff,
 		Check,
-		Loader2
+		Loader2,
+		Trash2
 	} from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -59,6 +61,8 @@
 	let uptime = $state('--:--:--');
 	let isSaving = $state(false);
 	let isSettingsOpen = $state(false);
+	let isDeleteDialogOpen = $state(false);
+	let isDeleting = $state(false);
 	let availableModels = $state<string[]>([]);
 
 	// ─── Detection State (loaded from backend) ───
@@ -149,6 +153,27 @@
 			alert('Error saving settings');
 		} finally {
 			isSaving = false;
+		}
+	}
+
+	async function deleteCamera() {
+		try {
+			isDeleting = true;
+			const res = await fetch(`http://localhost:8000/api/cameras/${taskId}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) {
+				goto('/livestream');
+			} else {
+				const data = await res.json();
+				alert(data.detail || 'Failed to delete camera');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Error deleting camera');
+		} finally {
+			isDeleting = false;
+			isDeleteDialogOpen = false;
 		}
 	}
 
@@ -924,15 +949,57 @@
 			</div>
 		</div>
 
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (isSettingsOpen = false)}>Cancel</Button>
-			<Button onclick={saveSettings} disabled={isSaving}>
-				{#if isSaving}
+		<Dialog.Footer class="gap-2 sm:gap-0">
+			<div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-between">
+				<Button
+					variant="ghost"
+					class="text-red-600 hover:bg-red-500/10 hover:text-red-600"
+					onclick={() => {
+						isSettingsOpen = false;
+						isDeleteDialogOpen = true;
+					}}
+				>
+					<Trash2 class="mr-2 size-4" />
+					Delete Camera
+				</Button>
+				<div class="flex gap-2">
+					<Button variant="outline" onclick={() => (isSettingsOpen = false)}>Cancel</Button>
+					<Button onclick={saveSettings} disabled={isSaving}>
+						{#if isSaving}
+							<Loader2 class="mr-2 size-4 animate-spin" />
+							Saving...
+						{:else}
+							<Check class="mr-2 size-4" />
+							Save Changes
+						{/if}
+					</Button>
+				</div>
+			</div>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Delete Confirmation Dialog -->
+<Dialog.Root bind:open={isDeleteDialogOpen}>
+	<Dialog.Content class="sm:max-w-[400px]">
+		<Dialog.Header>
+			<Dialog.Title class="flex items-center gap-2 text-red-600">
+				<AlertTriangle class="size-5" />
+				Delete Camera
+			</Dialog.Title>
+			<Dialog.Description>
+				Are you sure you want to delete <strong>{cameraName}</strong>? This action cannot be undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="gap-2 sm:gap-0">
+			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
+			<Button variant="destructive" onclick={deleteCamera} disabled={isDeleting}>
+				{#if isDeleting}
 					<Loader2 class="mr-2 size-4 animate-spin" />
-					Saving...
+					Deleting...
 				{:else}
-					<Check class="mr-2 size-4" />
-					Save Changes
+					<Trash2 class="mr-2 size-4" />
+					Delete Camera
 				{/if}
 			</Button>
 		</Dialog.Footer>
