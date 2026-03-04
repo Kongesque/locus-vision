@@ -28,44 +28,48 @@
 
 ## 🗺️ Roadmap Phases
 
+> **Legend**: 
+> ⭐ = MVP Priority (Required for Beta)
+> 🔥 = WOW Factor (High visual impact for Showcases)
+
 ### Phase 1: Core Spatial Analytics Engine (Current - Month 1-2)
 
 #### ✅ Completed
-- [x] Zone-based polygon counting
-- [x] Line crossing detection (bidirectional)
-- [x] ByteTrack multi-object tracking
-- [x] Class filtering (person, car, etc.)
-- [x] Real-time live stream processing
-- [x] Basic metrics collection (Frigate-style)
+- [x] Zone-based polygon counting ⭐
+- [x] Line crossing detection (bidirectional) ⭐
+- [x] ByteTrack multi-object tracking ⭐
+- [x] Class filtering (person, car, etc.) ⭐
+- [x] Real-time live stream processing 🔥
+- [x] Basic metrics collection (Frigate-style) ⭐
 
 #### 🚧 In Progress / Needed
 
 **1.1 Enhanced Zone Analytics**
 ```
-- [x] Zone dwell time (how long objects stay in zone)
-- [x] Zone entry/exit timestamps
-- [ ] Zone occupancy (current count in zone) - Frontend tracking needed
-- [x] Zone capacity alerts (80% full, etc.)
+- [x] Zone dwell time (how long objects stay in zone) ⭐
+- [x] Zone entry/exit timestamps ⭐
+- [ ] Zone occupancy (current count in zone) - Frontend tracking needed ⭐
+- [x] Zone capacity alerts (80% full, etc.) ⭐
 - [ ] Zone groups (combine multiple zones)
 - [ ] Nested zones (zone within zone)
 ```
 
 **1.2 Line Analytics**
 ```
-- [x] Multi-line support with naming
+- [x] Multi-line support with naming ⭐
 - [ ] Line crossing velocity (speed estimation)
-- [x] Line crossing direction heatmap (Data tracked, UI needed)
+- [x] Line crossing direction heatmap (Data tracked, UI needed) 🔥
 - [ ] Peak crossing times
 - [ ] Time-between-crossings (flow rate)
 ```
 
 **1.3 Object Tracking & Behavior**
 ```
-- [x] Object trajectory recording (path history - tracked in DuckDB)
+- [x] Object trajectory recording (path history - tracked in DuckDB) 🔥
 - [ ] Average speed per zone
-- [x] Direction of movement (N/E/S/W - anomaly tracking implemented)
-- [x] Object classification persistence (track "person" across zones)
-- [ ] Group detection (people moving together)
+- [x] Direction of movement (N/E/S/W - anomaly tracking implemented) ⭐
+- [x] Object classification persistence (track "person" across zones) ⭐
+- [ ] Group detection (people moving together) 🔥
 ```
 
 ---
@@ -74,20 +78,20 @@
 
 #### 2.1 Data Export & APIs
 ```
-- [x] REST API for all analytics data
-- [ ] Real-time data streaming (WebSocket/SSE)
-- [x] CSV export (hourly/daily/weekly aggregates)
-- [x] JSON API for integrations
+- [x] REST API for all analytics data ⭐
+- [ ] Real-time data streaming (WebSocket/SSE) 🔥
+- [x] CSV export (hourly/daily/weekly aggregates) ⭐
+- [x] JSON API for integrations ⭐
 - [ ] Webhook callbacks on events
 - [ ] MQTT publisher for IoT integration
 ```
 
 #### 2.2 Time-Series Database
 ```
-- [x] DuckDB integration (Replaced InfluxDB/TimescaleDB)
-- [x] Store: counts, dwell times, flow rates per zone
-- [x] Retention policies (raw 7d, hourly 90d, daily 1y)
-- [x] Downsampling for long-term storage
+- [x] DuckDB integration (Replaced InfluxDB/TimescaleDB) ⭐
+- [x] Store: counts, dwell times, flow rates per zone ⭐
+- [x] Retention policies (raw 7d, hourly 90d, daily 1y) ⭐
+- [x] Downsampling for long-term storage ⭐
 ```
 
 #### 2.3 Reporting Engine
@@ -104,11 +108,11 @@
 
 #### 2.4 Visualizations
 ```
-- [x] Heatmap overlay on camera view
-- [ ] Flow diagrams (Sankey diagrams for zone transitions)
-- [ ] Time-series charts (counts over time)
+- [x] Heatmap overlay on camera view 🔥
+- [ ] Flow diagrams (Sankey diagrams for zone transitions) 🔥
+- [ ] Time-series charts (counts over time) ⭐
 - [ ] Comparison charts (Zone A vs Zone B)
-- [ ] Peak hours identification
+- [ ] Peak hours identification ⭐
 - [ ] Trend analysis (week-over-week, month-over-month)
 ```
 
@@ -118,11 +122,11 @@
 
 #### 3.1 Behavioral Analytics
 ```
-- [ ] Path analysis (common routes through space)
+- [ ] Path analysis (common routes through space) 🔥
 - [ ] Stop detection (loitering identification)
 - [ ] Queue analysis (length, wait time, service time)
 - [ ] Social distancing compliance (if applicable)
-- [ ] Anomaly detection (unusual patterns)
+- [ ] Anomaly detection (unusual patterns) 🔥
 - [ ] Predictive analytics (forecast next hour traffic)
 ```
 
@@ -173,10 +177,10 @@
 
 #### 4.3 Live View (Analytics Overlay)
 ```
-- [ ] Multi-camera grid (2x2, 3x3)
-- [ ] Real-time zone counts overlay
-- [ ] Live heatmap overlay
-- [ ] Current occupancy display
+- [ ] Multi-camera grid (2x2, 3x3) ⭐
+- [ ] Real-time zone counts overlay ⭐
+- [ ] Live heatmap overlay 🔥
+- [ ] Current occupancy display ⭐
 - [ ] Mini dashboard per camera
 ```
 
