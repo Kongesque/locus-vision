@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { Activity, Download, Calendar, Map, BarChart3, Users, Clock } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let selectedCamera = $state(data.cameras?.[0]?.id || '');
+	let selectedCamera = $state(untrack(() => data.cameras?.[0]?.id || ''));
 	let timeRange = $state('7d');
 	let isLoading = $state(false);
 
 	let exportData = $state<any[]>([]);
 	let heatmapPoints = $state<any[]>([]);
 
-	let canvasElem: HTMLCanvasElement;
+	let canvasElem = $state<HTMLCanvasElement>();
 	let canvasWidth = $state(640);
 	let canvasHeight = $state(480);
 
@@ -179,30 +179,36 @@
 	{:else}
 		<!-- KPIs -->
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-			<div class="rounded-xl border bg-card text-card-foreground shadow">
+			<div
+				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+			>
 				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Total Detections</h3>
-					<Users class="h-4 w-4 text-muted-foreground" />
+					<Users class="h-4 w-4 text-primary" />
 				</div>
 				<div class="p-6 pt-0">
 					<div class="text-2xl font-bold">{totalVisitors.toLocaleString()}</div>
 					<p class="text-xs text-muted-foreground">Unique objects tracked</p>
 				</div>
 			</div>
-			<div class="rounded-xl border bg-card text-card-foreground shadow">
+			<div
+				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+			>
 				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Avg Dwell Time</h3>
-					<Clock class="h-4 w-4 text-muted-foreground" />
+					<Clock class="h-4 w-4 text-primary" />
 				</div>
 				<div class="p-6 pt-0">
 					<div class="text-2xl font-bold">{avgDwell.toFixed(1)}s</div>
 					<p class="text-xs text-muted-foreground">Average time spent in zones</p>
 				</div>
 			</div>
-			<div class="rounded-xl border bg-card text-card-foreground shadow">
+			<div
+				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+			>
 				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Data Points</h3>
-					<BarChart3 class="h-4 w-4 text-muted-foreground" />
+					<BarChart3 class="h-4 w-4 text-primary" />
 				</div>
 				<div class="p-6 pt-0">
 					<div class="text-2xl font-bold">{exportData.length}</div>
@@ -221,13 +227,13 @@
 					</h3>
 				</div>
 				<div
-					class="relative flex min-h-[480px] flex-1 items-center justify-center bg-zinc-950/50 p-0"
+					class="relative flex min-h-[480px] flex-1 items-center justify-center overflow-hidden rounded-b-xl bg-zinc-950/80 p-0 shadow-[inset_0_0_40px_rgba(59,130,246,0.1)] ring-1 ring-white/5"
 				>
 					<canvas
 						bind:this={canvasElem}
 						width={canvasWidth}
 						height={canvasHeight}
-						class="max-w-full rounded-b-xl"
+						class="max-w-full drop-shadow-xl"
 					></canvas>
 
 					<div

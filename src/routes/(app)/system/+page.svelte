@@ -166,7 +166,7 @@
 	{:else}
 		<!-- Top Stats Cards (Frigate-style) -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-			<Card>
+			<Card class="transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
 				<CardHeader class="flex flex-row items-center justify-between pb-2">
 					<CardTitle class="text-sm font-medium">CPU Usage</CardTitle>
 					<Cpu class="h-4 w-4 text-muted-foreground" />
@@ -184,7 +184,7 @@
 				</CardContent>
 			</Card>
 
-			<Card>
+			<Card class="transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
 				<CardHeader class="flex flex-row items-center justify-between pb-2">
 					<CardTitle class="text-sm font-medium">Memory</CardTitle>
 					<MemoryStick class="h-4 w-4 text-muted-foreground" />
@@ -205,7 +205,7 @@
 				</CardContent>
 			</Card>
 
-			<Card>
+			<Card class="transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
 				<CardHeader class="flex flex-row items-center justify-between pb-2">
 					<CardTitle class="text-sm font-medium">Storage</CardTitle>
 					<HardDrive class="h-4 w-4 text-muted-foreground" />
@@ -227,7 +227,7 @@
 				</CardContent>
 			</Card>
 
-			<Card>
+			<Card class="transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
 				<CardHeader class="flex flex-row items-center justify-between pb-2">
 					<CardTitle class="text-sm font-medium">Detector</CardTitle>
 					<Zap class="h-4 w-4 text-muted-foreground" />

@@ -10,7 +10,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Sun, Moon, Monitor } from '@lucide/svelte';
+	import { Sun, Moon, Monitor, Database } from '@lucide/svelte';
 	import { setMode, resetMode } from 'mode-watcher';
 
 	let { data, form }: { data: any; form: any } = $props();
@@ -318,11 +318,13 @@
 						</div>
 						<div class="h-4 w-full overflow-hidden rounded-full bg-secondary">
 							<div
-								class="h-full bg-primary transition-all duration-500 {percent > 90 ? 'bg-destructive' : ''}"
+								class="h-full bg-primary transition-all duration-500 {percent > 90
+									? 'bg-destructive'
+									: ''}"
 								style="width: {percent}%"
 							></div>
 						</div>
-						<p class="text-xs text-muted-foreground mt-1">
+						<p class="mt-1 text-xs text-muted-foreground">
 							{percent}% capacity • {totalGB} GB total capacity
 						</p>
 					</div>
@@ -339,6 +341,18 @@
 				<Card.Description>Manage application data and media files</Card.Description>
 			</Card.Header>
 			<Card.Content>
+				<div class="mb-4 space-y-2 rounded-lg bg-muted p-4 text-sm">
+					<div class="flex items-center gap-2 font-medium text-amber-500">
+						<Database class="size-4" />
+						Automated Analytics Retention
+					</div>
+					<p class="text-muted-foreground">
+						Time-series analytics telemetry and tracking arrays from the DuckDB cache are
+						automatically compressed and offloaded to Cold Storage Parquet Arrays by the background
+						Archiver service to preserve local SSD tier storage. You do not need to manually delete
+						this data.
+					</p>
+				</div>
 				<div class="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
 					<div class="space-y-0.5">
 						<Label class="text-sm font-medium">Clear All Media</Label>

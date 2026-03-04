@@ -4,10 +4,10 @@
 	import SearchInput from '$lib/components/video-analytics/search-input.svelte';
 	import VideoCard from '$lib/components/video-analytics/video-card.svelte';
 	import QueueStatus from '$lib/components/video-analytics/queue-status.svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 
 	let { data } = $props();
-	let history = $state<any[]>(data.history || []);
+	let history = $state<any[]>(untrack(() => data.history || []));
 	let searchQuery = $state('');
 	let refreshTimer: ReturnType<typeof setInterval>;
 
