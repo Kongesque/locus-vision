@@ -57,3 +57,13 @@ Transform the current purely in-memory, SQLite-backed LocusVision engine into a 
 ### Manual Verification
 - **Live Mode Testing:** Connect to an RTSP stream (via UI or dummy feed). Verify memory usage stabilizes over a 1-hour run (proving track garbage collection works). Verify WebSockets push capacity alerts instantly.
 - **Batch Mode Testing:** Process a 5-minute `.mp4` video. Verify the final DuckDB tables contain accurate `entry_time` and `exit_time` records for the objects in the video. Query the parquet exports using DuckDB CLI.
+
+### 4. Frontend Real-time Analytics Integration
+- Update SvelteKit `LiveView` to display `dwell_time` natively on tracking bounding boxes.
+- Implement UI Event Log sidebar highlighting high-severity issues (capacity_warning, wrong_way) triggering active alerts styled using SSE events.
+- Ensure Zone statistics overlay responds gracefully to new attributes dynamically.
+
+### 5. Historical Analytics Dashboard
+- Build and expose `GET /api/analytics/export` and `GET /api/analytics/heatmap` FastAPI endpoints. 
+- Create fully-featured component dashboard within `src/routes/(app)/analytics/+page.svelte`.
+- Implement KPI tracking blocks, table views, CSV export buttons, and HTML5 Canvas overlays demonstrating Spaghetti Path mapping.

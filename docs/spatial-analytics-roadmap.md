@@ -74,20 +74,20 @@
 
 #### 2.1 Data Export & APIs
 ```
-- [ ] REST API for all analytics data
+- [x] REST API for all analytics data
 - [ ] Real-time data streaming (WebSocket/SSE)
-- [ ] CSV export (hourly/daily/weekly aggregates)
-- [ ] JSON API for integrations
+- [x] CSV export (hourly/daily/weekly aggregates)
+- [x] JSON API for integrations
 - [ ] Webhook callbacks on events
 - [ ] MQTT publisher for IoT integration
 ```
 
 #### 2.2 Time-Series Database
 ```
-- [ ] InfluxDB/TimescaleDB integration
-- [ ] Store: counts, dwell times, flow rates per zone
-- [ ] Retention policies (raw 7d, hourly 90d, daily 1y)
-- [ ] Downsampling for long-term storage
+- [x] DuckDB integration (Replaced InfluxDB/TimescaleDB)
+- [x] Store: counts, dwell times, flow rates per zone
+- [x] Retention policies (raw 7d, hourly 90d, daily 1y)
+- [x] Downsampling for long-term storage
 ```
 
 #### 2.3 Reporting Engine
@@ -104,7 +104,7 @@
 
 #### 2.4 Visualizations
 ```
-- [ ] Heatmap overlay on camera view
+- [x] Heatmap overlay on camera view
 - [ ] Flow diagrams (Sankey diagrams for zone transitions)
 - [ ] Time-series charts (counts over time)
 - [ ] Comparison charts (Zone A vs Zone B)
@@ -340,7 +340,7 @@
 
 ## 🛣️ Immediate Next Steps (This Week)
 
-### 1. Dwell Time Tracking
+### ✅ 1. Dwell Time Tracking
 Add to `AnalyticsEngine`:
 ```python
 # Track how long each object stays in a zone
@@ -348,7 +348,7 @@ zone_entry_times: Dict[str, Dict[int, float]]  # zone_id -> {track_id: timestamp
 dwell_times: List[float]  # rolling window of dwell times
 ```
 
-### 2. Time-Series Data Export
+### ✅ 2. Time-Series Data Export
 Create export endpoint:
 ```python
 GET /api/analytics/export?zone=entrance&start=2024-01-01&end=2024-01-31&format=csv
@@ -359,7 +359,7 @@ timestamp,zone_id,enter_count,exit_count,avg_dwell_sec
 ...
 ```
 
-### 3. Heatmap Generation
+### ✅ 3. Heatmap Generation
 ```python
 # Accumulate detection centers over time
 create_heatmap(camera_id, duration_minutes=60) -> PNG overlay

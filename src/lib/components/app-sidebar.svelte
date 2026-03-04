@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { Home, Radio, ScanSearch, Settings, LogOut, Activity } from '@lucide/svelte';
+	import { Home, Radio, ScanSearch, Settings, LogOut, Activity, Server } from '@lucide/svelte';
 	import Echo from '$lib/components/svg/echo.svelte';
 </script>
 
@@ -62,6 +62,16 @@
 							<a href="/analytics" {...props}>
 								<Activity />
 								<span>Historical Analytics</span>
+							</a>
+						{/snippet}
+					</Sidebar.MenuButton>
+				</Sidebar.MenuItem>
+				<Sidebar.MenuItem>
+					<Sidebar.MenuButton tooltipContent="System">
+						{#snippet child({ props })}
+							<a href="/system" {...props}>
+								<Server />
+								<span>System</span>
 							</a>
 						{/snippet}
 					</Sidebar.MenuButton>
