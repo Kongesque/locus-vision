@@ -59,7 +59,7 @@
 	);
 	let fps = $state(0);
 	let errorMsg = $state<string | null>(null);
-	let uptime = $state('00:00:00');
+	let uptime = $state('--:--:--');
 	let startTime = $state<number | null>(null);
 	let storageGbFree = $state('...');
 	let isSaving = $state(false);
@@ -441,11 +441,22 @@
 				const data = await res.json();
 				if (data.started_at) {
 					startTime = data.started_at * 1000; // Convert to ms
+					// Compute uptime immediately (no waiting for next interval tick)
+					updateUptime();
 				}
 			}
 		} catch {
 			// Stream may not be active yet
 		}
+	}
+
+	function updateUptime() {
+		if (!startTime) return;
+		const diffSeconds = Math.floor((Date.now() - startTime) / 1000);
+		const h = Math.floor(diffSeconds / 3600);
+		const m = Math.floor((diffSeconds % 3600) / 60);
+		const s = diffSeconds % 60;
+		uptime = [h, m, s].map((v) => v.toString().padStart(2, '0')).join(':');
 	}
 
 	async function fetchFpsNow() {
@@ -475,9 +486,7 @@
 				if (data.events && data.events.length > 0) {
 					const mapped = data.events.map(
 						(ev: { type: string; message: string; zone?: string; timestamp?: number }) => {
-							const evTime = ev.timestamp
-								? new Date(ev.timestamp * 1000)
-								: new Date();
+							const evTime = ev.timestamp ? new Date(ev.timestamp * 1000) : new Date();
 							const severity = classifySeverity(ev.type);
 							return {
 								id: crypto.randomUUID(),
@@ -530,13 +539,7 @@
 			currentTime = new Date();
 
 			// Calculate uptime from server-side start time (NVR-style)
-			if (startTime) {
-				const diffSeconds = Math.floor((Date.now() - startTime) / 1000);
-				const h = Math.floor(diffSeconds / 3600);
-				const m = Math.floor((diffSeconds % 3600) / 60);
-				const s = diffSeconds % 60;
-				uptime = [h, m, s].map((v) => v.toString().padStart(2, '0')).join(':');
-			}
+			updateUptime();
 
 			// Poll FPS from system metrics
 			fetchFpsNow();
