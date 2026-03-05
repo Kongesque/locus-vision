@@ -658,11 +658,6 @@
 							</div>
 						{/if}
 
-						<!-- Scanline effect overlay -->
-						<div
-							class="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_2px,rgba(0,0,0,0.03)_4px)]"
-						></div>
-
 						{#if videoWidth > 0 && videoHeight > 0}
 							<LiveHeatmap
 								points={heatmapPoints}
