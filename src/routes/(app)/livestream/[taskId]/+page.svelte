@@ -7,14 +7,8 @@
 		Maximize,
 		Minimize,
 		Camera,
-		Circle,
-		Volume2,
-		VolumeOff,
 		Settings,
 		Shield,
-		Video,
-		Wifi,
-		WifiOff,
 		HardDrive,
 		Clock,
 		Eye,
@@ -23,13 +17,6 @@
 		Activity,
 		AlertTriangle,
 		Crosshair,
-		ZoomIn,
-		ZoomOut,
-		ChevronUp,
-		ChevronDown,
-		MoveLeft,
-		MoveRight,
-		RotateCcw,
 		ImageIcon,
 		VideoOff,
 		Check,
@@ -38,9 +25,7 @@
 		Pause,
 		Play,
 		X,
-		ArrowDown,
-		Bell,
-		BellOff
+		ArrowDown
 	} from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -72,10 +57,11 @@
 	let resolution = $derived(
 		videoWidth && videoHeight ? `${videoWidth}×${videoHeight}` : 'Loading...'
 	);
-	let fps = $state(24);
-	let bitrate = $state('4.2 Mbps');
+	let fps = $state(0);
 	let errorMsg = $state<string | null>(null);
-	let uptime = $state('--:--:--');
+	let uptime = $state('00:00:00');
+	let startTime = $state(Date.now());
+	let storageGbFree = $state('...');
 	let isSaving = $state(false);
 	let isSettingsOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
@@ -196,9 +182,6 @@
 
 	// ─── UI State ───
 	let isFullscreen = $state(false);
-	let isMuted = $state(true);
-	let isRecording = $state(true);
-	let showPTZ = $state(false);
 	let showControls = $state(false);
 	let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
 	let videoContainer: HTMLDivElement | null = $state(null);
@@ -262,7 +245,6 @@
 	let feedContainer: HTMLDivElement | null = $state(null);
 	let hasNewEvents = $state(false);
 	let eventCounts = $state<Record<string, number>>({});
-	let isSoundEnabled = $state(true);
 
 	function classifySeverity(type: string): 'critical' | 'warning' | 'info' {
 		if (type === 'alert' || type === 'capacity_warning' || type === 'wrong_way') return 'critical';
@@ -433,7 +415,6 @@
 		if (controlsTimeout) clearTimeout(controlsTimeout);
 		controlsTimeout = setTimeout(() => {
 			showControls = false;
-			showPTZ = false;
 		}, 1000);
 	}
 
@@ -451,38 +432,44 @@
 		isFullscreen = !!document.fullscreenElement;
 	}
 
-	// ─── TODO: Backend stubs ───
-	function handleSnapshot() {
-		// TODO: Call backend API to capture a snapshot from the camera
-		// POST /api/cameras/{taskId}/snapshot
-		console.log('TODO: Snapshot captured');
-	}
-
-	function handleRecordToggle() {
-		// TODO: Call backend API to toggle recording
-		// POST /api/cameras/{taskId}/record
-		isRecording = !isRecording;
-	}
-
-	function handleMuteToggle() {
-		// TODO: Toggle audio stream from the camera
-		isMuted = !isMuted;
-	}
-
-	function handlePTZ(direction: string) {
-		// TODO: Send PTZ command to backend
-		// POST /api/cameras/{taskId}/ptz { action: direction }
-		console.log('TODO: PTZ command:', direction);
-	}
-
 	// ─── Lifecycle ───
 	onMount(() => {
+		startTime = Date.now();
 		fetchCameraInfo();
 		fetchAvailableModels();
 
+		// Fetch storage once on mount
+		fetch('http://localhost:8000/api/system/storage')
+			.then((res) => res.json())
+			.then((data) => {
+				storageGbFree = data.recordings_free_gb.toFixed(1);
+			})
+			.catch((err) => console.error('Failed to load storage stats:', err));
+
 		clockInterval = setInterval(() => {
 			currentTime = new Date();
-		}, 1000);
+
+			// Calculate uptime
+			const diffSeconds = Math.floor((Date.now() - startTime) / 1000);
+			const h = Math.floor(diffSeconds / 3600);
+			const m = Math.floor((diffSeconds % 3600) / 60);
+			const s = diffSeconds % 60;
+			uptime = [h, m, s].map((v) => v.toString().padStart(2, '0')).join(':');
+
+			// Poll FPS from system metrics
+			fetch('http://localhost:8000/api/system/cameras')
+				.then((res) => res.json())
+				.then((data) => {
+					if (data.cameras) {
+						const camStats = data.cameras.find((c: any) => c.id === taskId);
+						if (camStats) {
+							fps = camStats.detect_fps;
+						}
+					}
+				})
+				.catch(() => {});
+		}, 5000); // Poll metrics and update uptime every 5s
+
 		document.addEventListener('fullscreenchange', handleFullscreenChange);
 	});
 
@@ -506,14 +493,6 @@
 	let hudDate = $derived(
 		currentTime.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
 	);
-
-	// ─── Connection quality (mock) ───
-	let signalStrength = $state<'excellent' | 'good' | 'poor'>('excellent');
-	const signalColors = {
-		excellent: 'text-emerald-400',
-		good: 'text-amber-400',
-		poor: 'text-red-400'
-	};
 </script>
 
 <svelte:head>
@@ -565,24 +544,6 @@
 			</div>
 		</div>
 		<div class="flex items-center gap-2">
-			<!-- Signal indicator -->
-			<div class="flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5">
-				{#if cameraStatus === 'live'}
-					<Wifi class="size-3.5 {signalColors[signalStrength]}" />
-				{:else}
-					<WifiOff class="size-3.5 text-red-400" />
-				{/if}
-				<span class="text-xs font-medium text-muted-foreground capitalize">{signalStrength}</span>
-			</div>
-			<!-- Recording indicator -->
-			{#if isRecording}
-				<div
-					class="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5"
-				>
-					<Circle class="size-3 animate-pulse fill-red-500 text-red-500" />
-					<span class="text-xs font-medium text-red-400">REC</span>
-				</div>
-			{/if}
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					<Button
@@ -686,78 +647,11 @@
 					</span>
 				</div>
 
-				<!-- Top right: recording dot -->
-				{#if isRecording}
-					<div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-						<span class="size-2 animate-pulse rounded-full bg-red-500"></span>
-						<span class="font-mono text-[10px] font-bold text-red-400/80">REC</span>
-					</div>
-				{/if}
-
 				<!-- Bottom left: model + FPS -->
 				<div class="absolute bottom-3 left-3 z-10">
 					<span class="font-mono text-[10px] text-white/40">
-						{modelName} · {fps}fps · {resolution}
+						{modelName} · {fps > 0 ? fps.toFixed(1) + 'fps' : 'Loading...'} · {resolution}
 					</span>
-				</div>
-
-				<!-- ─── PTZ Controls (top-right, shown on hover) ─── -->
-				<div
-					class="absolute top-12 right-3 z-20 transition-all duration-300"
-					class:opacity-0={!showPTZ}
-					class:pointer-events-none={!showPTZ}
-					class:opacity-100={showPTZ}
-				>
-					<div
-						class="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/70 p-2 backdrop-blur-md"
-					>
-						<button
-							onclick={() => handlePTZ('up')}
-							class="flex size-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-						>
-							<ChevronUp class="size-4" />
-						</button>
-						<div class="flex items-center gap-1">
-							<button
-								onclick={() => handlePTZ('left')}
-								class="flex size-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								<MoveLeft class="size-4" />
-							</button>
-							<button
-								onclick={() => handlePTZ('home')}
-								class="flex size-7 items-center justify-center rounded-full border border-white/20 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								<RotateCcw class="size-3" />
-							</button>
-							<button
-								onclick={() => handlePTZ('right')}
-								class="flex size-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								<MoveRight class="size-4" />
-							</button>
-						</div>
-						<button
-							onclick={() => handlePTZ('down')}
-							class="flex size-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-						>
-							<ChevronDown class="size-4" />
-						</button>
-						<div class="mt-1 flex items-center gap-1 border-t border-white/10 pt-2">
-							<button
-								onclick={() => handlePTZ('zoom-out')}
-								class="flex size-7 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								<ZoomOut class="size-3.5" />
-							</button>
-							<button
-								onclick={() => handlePTZ('zoom-in')}
-								class="flex size-7 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-							>
-								<ZoomIn class="size-3.5" />
-							</button>
-						</div>
-					</div>
 				</div>
 
 				<!-- ─── Bottom Control Bar (shown on hover) ─── -->
@@ -769,39 +663,7 @@
 					class:translate-y-0={showControls || isFullscreen}
 				>
 					<div class="flex items-center gap-1">
-						<button
-							onclick={handleSnapshot}
-							class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-							title="Capture Snapshot"
-						>
-							<Camera class="size-4" />
-							<span class="hidden sm:inline">Snapshot</span>
-						</button>
-						<button
-							onclick={handleRecordToggle}
-							class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/10 {isRecording
-								? 'text-red-400'
-								: 'text-white/80'}"
-							title={isRecording ? 'Stop Recording' : 'Start Recording'}
-						>
-							{#if isRecording}
-								<Circle class="size-4 fill-red-500" />
-							{:else}
-								<Video class="size-4" />
-							{/if}
-							<span class="hidden sm:inline">{isRecording ? 'Recording' : 'Record'}</span>
-						</button>
-						<button
-							onclick={handleMuteToggle}
-							class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-							title={isMuted ? 'Unmute' : 'Mute'}
-						>
-							{#if isMuted}
-								<VolumeOff class="size-4" />
-							{:else}
-								<Volume2 class="size-4" />
-							{/if}
-						</button>
+						<!-- Control bar intentionally simplified -->
 					</div>
 					<div class="flex items-center gap-1">
 						<button
@@ -813,16 +675,6 @@
 						>
 							<Activity class="size-4" />
 							<span class="hidden sm:inline">Heatmap</span>
-						</button>
-						<button
-							onclick={() => (showPTZ = !showPTZ)}
-							class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/10 {showPTZ
-								? 'text-blue-400'
-								: 'text-white/80'}"
-							title="Toggle PTZ Controls"
-						>
-							<Crosshair class="size-4" />
-							<span class="hidden sm:inline">PTZ</span>
 						</button>
 						<button
 							onclick={toggleFullscreen}
@@ -864,12 +716,7 @@
 				<span class="text-border">│</span>
 				<div class="flex shrink-0 items-center gap-1.5">
 					<Activity class="size-3 text-emerald-400" />
-					<span class="text-[11px] font-semibold">{fps} FPS</span>
-				</div>
-				<span class="text-border">│</span>
-				<div class="flex shrink-0 items-center gap-1.5">
-					<HardDrive class="size-3 text-amber-400" />
-					<span class="text-[11px] font-semibold">{bitrate}</span>
+					<span class="text-[11px] font-semibold">{fps > 0 ? fps.toFixed(1) + ' FPS' : '...'}</span>
 				</div>
 				<span class="text-border">│</span>
 				<div class="flex shrink-0 items-center gap-1.5">
@@ -931,18 +778,6 @@
 									<span class="text-amber-400">+{pausedBuffer.length}</span>
 								{/if}
 							</span>
-							<!-- Sound toggle -->
-							<button
-								onclick={() => (isSoundEnabled = !isSoundEnabled)}
-								class="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-								title={isSoundEnabled ? 'Mute alerts' : 'Unmute alerts'}
-							>
-								{#if isSoundEnabled}
-									<Bell class="size-3" />
-								{:else}
-									<BellOff class="size-3 text-muted-foreground/50" />
-								{/if}
-							</button>
 							<!-- Pause/Resume -->
 							<button
 								onclick={toggleFeedPause}
@@ -1150,7 +985,7 @@
 			</div>
 			<div class="hidden items-center gap-1.5 sm:flex">
 				<HardDrive class="size-3 text-muted-foreground" />
-				<span class="text-[11px] text-muted-foreground">Storage: 324 GB free</span>
+				<span class="text-[11px] text-muted-foreground">Storage: {storageGbFree} GB free</span>
 			</div>
 		</div>
 		<div class="flex items-center gap-4">
