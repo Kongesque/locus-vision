@@ -520,9 +520,11 @@
 	<title>{cameraName} · Live · Locus</title>
 </svelte:head>
 
-<div class="flex flex-1 flex-col overflow-hidden">
+<div class="flex h-full flex-col overflow-hidden">
 	<!-- ─── Header Bar ─── -->
-	<header class="flex items-center justify-between border-b bg-card/50 px-4 py-3 backdrop-blur-sm">
+	<header
+		class="flex shrink-0 items-center justify-between border-b bg-card/50 px-3 py-2 backdrop-blur-sm"
+	>
 		<div class="flex items-center gap-3">
 			<Button variant="ghost" size="icon" href="/livestream" class="shrink-0">
 				<ChevronLeft class="size-4" />
@@ -621,17 +623,17 @@
 	{/if}
 
 	<!-- ─── Main Content ─── -->
-	<div class="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row">
+	<div class="flex min-h-0 flex-1 gap-3 overflow-hidden p-3 lg:flex-row">
 		<!-- Left: Video + Stats -->
-		<div class="flex min-w-0 flex-1 flex-col gap-4">
+		<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
 			<!-- Video Player -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				bind:this={videoContainer}
-				class="group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl bg-black shadow-xl transition-all duration-500 {hasActiveAlert
+				class="group relative flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden rounded-xl bg-black shadow-xl transition-all duration-500 {hasActiveAlert
 					? 'border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)]'
 					: 'border border-border/50'}"
-				style={isFullscreen ? 'height: 100vh;' : 'height: calc(100vh - 18rem); min-height: 24rem;'}
+				style={isFullscreen ? 'height: 100vh;' : ''}
 				onmousemove={handleVideoMouseMove}
 				onmouseleave={handleVideoMouseLeave}
 			>
@@ -855,83 +857,62 @@
 				{/if}
 			</div>
 
-			<!-- ─── Stats Cards ─── -->
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<div
-					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
-				>
-					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-						<Shield class="size-3.5 text-blue-400" />
-						Detection Model
-					</div>
-					<div class="mt-1.5 text-sm font-semibold tracking-tight">{modelName}</div>
+			<!-- ─── Stats Strip ─── -->
+			<div
+				class="flex shrink-0 items-center gap-3 overflow-x-auto rounded-lg border bg-card/60 px-3 py-1.5 backdrop-blur-sm"
+			>
+				<div class="flex shrink-0 items-center gap-1.5">
+					<Shield class="size-3 text-blue-400" />
+					<span class="text-[11px] text-muted-foreground">Model</span>
+					<span class="text-[11px] font-semibold">{modelName}</span>
 				</div>
-				<div
-					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
-				>
-					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-						<Activity class="size-3.5 text-emerald-400" />
-						Frame Rate
-					</div>
-					<div class="mt-1.5 text-sm font-semibold tracking-tight">{fps} FPS</div>
+				<span class="text-border">│</span>
+				<div class="flex shrink-0 items-center gap-1.5">
+					<Activity class="size-3 text-emerald-400" />
+					<span class="text-[11px] font-semibold">{fps} FPS</span>
 				</div>
-				<div
-					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
-				>
-					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-						<HardDrive class="size-3.5 text-amber-400" />
-						Bitrate
-					</div>
-					<div class="mt-1.5 text-sm font-semibold tracking-tight">{bitrate}</div>
+				<span class="text-border">│</span>
+				<div class="flex shrink-0 items-center gap-1.5">
+					<HardDrive class="size-3 text-amber-400" />
+					<span class="text-[11px] font-semibold">{bitrate}</span>
 				</div>
-				<div
-					class="group rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-primary/20"
-				>
-					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-						<Clock class="size-3.5 text-purple-400" />
-						Uptime
-					</div>
-					<div class="mt-1.5 text-sm font-semibold tracking-tight">{uptime}</div>
+				<span class="text-border">│</span>
+				<div class="flex shrink-0 items-center gap-1.5">
+					<Clock class="size-3 text-purple-400" />
+					<span class="text-[11px] font-semibold">{uptime}</span>
 				</div>
 			</div>
 
-			<!-- ─── Zone Occupancy ─── -->
+			<!-- ─── Zone Occupancy (compact) ─── -->
 			{#if zones.length > 0}
-				<div class="rounded-xl border bg-card shadow-sm">
-					<div class="flex items-center justify-between border-b px-4 py-3">
-						<div class="flex items-center gap-2">
-							<ImageIcon class="size-4 text-muted-foreground" />
-							<h3 class="text-sm font-semibold tracking-tight">Zone Occupancy</h3>
+				<div
+					class="flex shrink-0 items-center gap-3 overflow-x-auto rounded-lg border bg-card/60 px-3 py-1.5 backdrop-blur-sm"
+				>
+					<div class="flex shrink-0 items-center gap-1.5">
+						<ImageIcon class="size-3 text-muted-foreground" />
+						<span class="text-[11px] font-medium text-muted-foreground">Zones</span>
+					</div>
+					<span class="text-border">│</span>
+					{#each zones as zone, i}
+						<div class="flex shrink-0 items-center gap-1.5">
+							<div
+								class="size-2 shrink-0 rounded-full"
+								style="background-color: {zone.color}"
+							></div>
+							<span class="text-[11px] text-muted-foreground">{zone.name}</span>
+							<span class="text-[11px] font-bold">{zoneCounts[zone.id] || 0}</span>
 						</div>
-						<span class="text-xs text-muted-foreground">{zones.length} active zones</span>
-					</div>
-					<div
-						class="grid grid-cols-1 gap-0 divide-y sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-y-0"
-					>
-						{#each zones as zone}
-							<div class="flex items-center gap-3 px-4 py-3">
-								<div
-									class="size-2.5 shrink-0 rounded-full"
-									style="background-color: {zone.color}"
-								></div>
-								<div class="min-w-0 flex-1">
-									<div class="truncate text-xs font-medium text-muted-foreground">{zone.name}</div>
-									<div class="text-xl font-bold tracking-tight">{zoneCounts[zone.id] || 0}</div>
-								</div>
-								<div class="flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5">
-									<Users class="size-3 text-muted-foreground" />
-									<span class="text-[10px] font-medium text-muted-foreground">objects</span>
-								</div>
-							</div>
-						{/each}
-					</div>
+						{#if i < zones.length - 1}
+							<span class="text-border">·</span>
+						{/if}
+					{/each}
 				</div>
 			{/if}
 		</div>
 
 		<!-- ─── Right Sidebar: Activity Feed (NVR-style) ─── -->
-		<div class="flex w-full flex-col lg:w-80 xl:w-96">
-			<div class="flex flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+		<div class="hidden min-h-0 w-80 shrink-0 flex-col lg:flex xl:w-96">
+			<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
 				<!-- Feed header with toolbar -->
 				<div class="border-b px-4 py-3">
 					<div class="flex items-center justify-between">
@@ -1164,7 +1145,9 @@
 	</div>
 
 	<!-- ─── System Health Footer ─── -->
-	<footer class="flex items-center justify-between border-t bg-card/50 px-4 py-2 backdrop-blur-sm">
+	<footer
+		class="flex shrink-0 items-center justify-between border-t bg-card/50 px-3 py-1.5 backdrop-blur-sm"
+	>
 		<div class="flex items-center gap-4">
 			<div class="flex items-center gap-1.5">
 				<span class="size-1.5 rounded-full bg-emerald-500"></span>
