@@ -9,6 +9,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Input } from '$lib/components/ui/input';
+	import { Slider } from '$lib/components/ui/slider';
 
 	// Icons
 	import {
@@ -58,6 +59,9 @@
 		onFullFrameClassesChanged: (classes: string[]) => void;
 		onModelChange: (model: string) => void;
 		onPrecisionChange: (precision: 'fp32' | 'fp16' | 'int8') => void;
+		fps: number;
+		defaultFps: number;
+		onFpsChange: (fps: number) => void;
 	}
 
 	let {
@@ -82,7 +86,10 @@
 		onZoneDirectionChanged,
 		onFullFrameClassesChanged,
 		onModelChange,
-		onPrecisionChange
+		onPrecisionChange,
+		fps,
+		defaultFps,
+		onFpsChange
 	}: Props = $props();
 
 	// Helper: find model info for the currently selected model
@@ -293,6 +300,28 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- FPS -->
+	<div>
+		<div class="mb-2 flex items-center justify-between">
+			<div class="font-semibold text-foreground">FPS</div>
+			<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{fps}</span
+			>
+		</div>
+		<Slider value={[fps]} min={1} max={60} step={1} onValueChange={(v) => onFpsChange(v[0])} />
+		<div class="mt-1 flex justify-between text-[10px] text-muted-foreground">
+			<span>1</span>
+			<button
+				class="cursor-pointer text-[10px] text-primary hover:underline"
+				onclick={() => onFpsChange(defaultFps)}
+			>
+				Reset to {defaultFps}
+			</button>
+			<span>60</span>
+		</div>
+	</div>
+
+	<Separator />
 
 	<!-- Tools & Zones -->
 	<div>

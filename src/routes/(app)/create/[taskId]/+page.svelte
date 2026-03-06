@@ -45,6 +45,10 @@
 	let selectedPrecision = $state<'fp32' | 'fp16' | 'int8'>('int8');
 	let downloadedModels = $state<string[]>([]);
 
+	// FPS: default depends on flow type (12 = video analytics, 24 = livestream)
+	const defaultFps = $derived(videoStore.videoType === 'file' ? 12 : 24);
+	let fps = $state<number>(videoStore.videoType === 'file' ? 12 : 24);
+
 	// Model Download State
 	let modelDownloadStatus = $state<{ status: string; error?: string } | null>(null);
 	let isDownloadingModel = $derived(
@@ -197,6 +201,7 @@
 			formData.append('zones', JSON.stringify(normalizedZones));
 			formData.append('classes', JSON.stringify(finalGlobalClasses));
 			formData.append('model_name', resolvedModelName);
+			formData.append('fps', String(fps));
 
 			// Fire-and-forget: upload in background
 			fetch(`http://localhost:8000/api/video/${taskId}/process`, {
@@ -229,7 +234,8 @@
 					body: JSON.stringify({
 						zones: JSON.stringify(normalizedZones),
 						classes: JSON.stringify(consolidatedClasses),
-						model_name: resolvedModelName
+						model_name: resolvedModelName,
+						fps: fps
 					})
 				});
 
@@ -279,6 +285,8 @@
 				{isModelMissing}
 				{isDownloadingModel}
 				{modelDownloadStatus}
+				{fps}
+				{defaultFps}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
 				onZoneSelected={handleZoneSelected}
 				onDeleteZone={handleDeleteZone}
@@ -293,6 +301,7 @@
 					selectedPrecision = p;
 					modelDownloadStatus = null; // reset status on change
 				}}
+				onFpsChange={(v) => (fps = v)}
 			/>
 		</div>
 	</div>
