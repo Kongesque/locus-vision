@@ -4,8 +4,9 @@
 	import { setVideoContext } from '$lib/stores/video-store.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import VideoPreview from '$lib/components/create/video-preview.svelte';
-	import ToolsPanel, { type YoloModel } from '$lib/components/create/tools-panel.svelte';
+	import ToolsPanel from '$lib/components/create/tools-panel.svelte';
 	import type { Point, Zone } from '$lib/components/create/drawing-canvas.svelte';
+	import { onMount } from 'svelte';
 
 	import { videoStore } from '$lib/stores/video.svelte';
 
@@ -31,7 +32,23 @@
 	let selectedZoneId = $state<string | null>(null);
 	let drawingMode = $state<'polygon' | 'line'>('polygon');
 	let fullFrameClasses = $state<string[]>([]);
-	let selectedModel = $state<YoloModel>('yolo11n');
+	let selectedModel = $state<string>('yolo11n');
+	let availableModels = $state<string[]>([]);
+
+	onMount(async () => {
+		try {
+			const res = await fetch('http://localhost:8000/api/cameras/models');
+			if (res.ok) {
+				availableModels = await res.json();
+				// If current model is not in the list, default to first available
+				if (availableModels.length > 0 && !availableModels.includes(selectedModel)) {
+					selectedModel = availableModels[0];
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch models:', err);
+		}
+	});
 
 	function handleZoneCreated(points: Point[]) {
 		const newZone: Zone = {
@@ -178,6 +195,7 @@
 				{drawingMode}
 				{fullFrameClasses}
 				{selectedModel}
+				{availableModels}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
 				onZoneSelected={handleZoneSelected}
 				onDeleteZone={handleDeleteZone}

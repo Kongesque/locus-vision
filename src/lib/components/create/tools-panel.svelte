@@ -1,15 +1,3 @@
-<script lang="ts" module>
-	export const YOLO_MODELS = [
-		{ value: 'yolo11n', label: 'YOLO11 Nano', description: 'Fastest' },
-		{ value: 'yolo11s', label: 'YOLO11 Small', description: 'Fast' },
-		{ value: 'yolo11m', label: 'YOLO11 Medium', description: 'Balanced' },
-		{ value: 'yolo11l', label: 'YOLO11 Large', description: 'Accurate' },
-		{ value: 'yolo11x', label: 'YOLO11 XLarge', description: 'Most accurate' }
-	] as const;
-
-	export type YoloModel = (typeof YOLO_MODELS)[number]['value'];
-</script>
-
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { Separator } from '$lib/components/ui/separator';
@@ -45,7 +33,8 @@
 		selectedZoneId: string | null;
 		drawingMode: 'polygon' | 'line';
 		fullFrameClasses: string[];
-		selectedModel: YoloModel;
+		selectedModel: string;
+		availableModels: string[];
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
 		onZoneSelected: (id: string | null) => void;
 		onDeleteZone: (id: string, e: MouseEvent) => void;
@@ -54,7 +43,7 @@
 		onZoneClassesChanged: (id: string, classes: string[]) => void;
 		onZoneDirectionChanged: (id: string, direction: 'both' | 'in' | 'out') => void;
 		onFullFrameClassesChanged: (classes: string[]) => void;
-		onModelChange: (model: YoloModel) => void;
+		onModelChange: (model: string) => void;
 	}
 
 	let {
@@ -63,6 +52,7 @@
 		drawingMode,
 		fullFrameClasses,
 		selectedModel,
+		availableModels = [],
 		onDrawingModeChange,
 		onZoneSelected,
 		onDeleteZone,
@@ -137,21 +127,16 @@
 			type="single"
 			bind:value={selectedModel}
 			onValueChange={(v) => {
-				if (v) onModelChange(v as YoloModel);
+				if (v) onModelChange(v);
 			}}
 		>
 			<Select.Trigger class="h-auto w-full">
-				<span>{YOLO_MODELS.find((m) => m.value === selectedModel)?.label || 'Select model'}</span>
+				<span>{selectedModel || 'Select model'}</span>
 			</Select.Trigger>
 			<Select.Content>
-				{#each YOLO_MODELS as model}
-					<Select.Item value={model.value} label={model.label}>
-						<div class="flex items-center gap-2">
-							<span class="font-medium">{model.label}</span>
-							<span class="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-								>{model.description}</span
-							>
-						</div>
+				{#each availableModels as model}
+					<Select.Item value={model} label={model}>
+						<span class="font-medium">{model}</span>
 					</Select.Item>
 				{/each}
 			</Select.Content>

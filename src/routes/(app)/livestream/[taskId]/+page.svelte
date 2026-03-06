@@ -66,7 +66,6 @@
 	let isSettingsOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
 	let isDeleting = $state(false);
-	let availableModels = $state<string[]>([]);
 
 	// ─── Detection State (loaded from backend) ───
 	let zones = $state<any[]>([]);
@@ -122,17 +121,6 @@
 		}
 	}
 
-	async function fetchAvailableModels() {
-		try {
-			const res = await fetch('http://localhost:8000/api/cameras/models');
-			if (res.ok) {
-				availableModels = await res.json();
-			}
-		} catch (err) {
-			console.error('Failed to fetch models:', err);
-		}
-	}
-
 	async function saveSettings() {
 		try {
 			isSaving = true;
@@ -140,8 +128,7 @@
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					name: cameraName,
-					model_name: modelName
+					name: cameraName
 				})
 			});
 			if (res.ok) {
@@ -523,7 +510,6 @@
 		fetchFpsNow();
 		fetchRecentEvents();
 		fetchCameraInfo();
-		fetchAvailableModels();
 
 		// Fetch storage once on mount
 		fetch('http://localhost:8000/api/system/storage')
@@ -1083,20 +1069,6 @@
 			<div class="grid gap-2">
 				<Label for="name">Camera Name</Label>
 				<Input id="name" bind:value={cameraName} placeholder="e.g. Front Door" />
-			</div>
-			<div class="grid gap-2">
-				<Label for="model">Inference Model</Label>
-				<Select.Root type="single" bind:value={modelName}>
-					<Select.Trigger id="model" placeholder="Select AI Model" />
-					<Select.Content>
-						{#each availableModels as model}
-							<Select.Item value={model}>{model}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-				<p class="text-[10px] text-muted-foreground">
-					Model changes will apply next time the stream is started.
-				</p>
 			</div>
 		</div>
 
