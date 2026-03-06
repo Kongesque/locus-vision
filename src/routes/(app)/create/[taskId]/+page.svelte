@@ -10,6 +10,15 @@
 
 	import { videoStore } from '$lib/stores/video.svelte';
 
+	// All YOLO11 model sizes with metadata
+	export const YOLO11_MODELS = [
+		{ value: 'yolo11n', label: 'YOLOv11 Nano', desc: 'Fastest', size: '~6MB' },
+		{ value: 'yolo11s', label: 'YOLOv11 Small', desc: 'Fast', size: '~20MB' },
+		{ value: 'yolo11m', label: 'YOLOv11 Medium', desc: 'Balanced', size: '~40MB' },
+		{ value: 'yolo11l', label: 'YOLOv11 Large', desc: 'Accurate', size: '~50MB' },
+		{ value: 'yolo11x', label: 'YOLOv11 Extra Large', desc: 'Most Accurate', size: '~115MB' }
+	];
+
 	// Get taskId from URL params
 	const taskId = $derived($page.params.taskId);
 
@@ -33,17 +42,13 @@
 	let drawingMode = $state<'polygon' | 'line'>('polygon');
 	let fullFrameClasses = $state<string[]>([]);
 	let selectedModel = $state<string>('yolo11n');
-	let availableModels = $state<string[]>([]);
+	let downloadedModels = $state<string[]>([]);
 
 	onMount(async () => {
 		try {
 			const res = await fetch('http://localhost:8000/api/cameras/models');
 			if (res.ok) {
-				availableModels = await res.json();
-				// If current model is not in the list, default to first available
-				if (availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-					selectedModel = availableModels[0];
-				}
+				downloadedModels = await res.json();
 			}
 		} catch (err) {
 			console.error('Failed to fetch models:', err);
@@ -195,7 +200,8 @@
 				{drawingMode}
 				{fullFrameClasses}
 				{selectedModel}
-				{availableModels}
+				allModels={YOLO11_MODELS}
+				{downloadedModels}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
 				onZoneSelected={handleZoneSelected}
 				onDeleteZone={handleDeleteZone}

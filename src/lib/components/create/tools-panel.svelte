@@ -28,13 +28,21 @@
 	import { COCO_CLASSES } from '$lib/coco-classes';
 	import { tick } from 'svelte';
 
+	interface ModelInfo {
+		value: string;
+		label: string;
+		desc: string;
+		size: string;
+	}
+
 	interface Props {
 		zones: Zone[];
 		selectedZoneId: string | null;
 		drawingMode: 'polygon' | 'line';
 		fullFrameClasses: string[];
 		selectedModel: string;
-		availableModels: string[];
+		allModels: ModelInfo[];
+		downloadedModels: string[];
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
 		onZoneSelected: (id: string | null) => void;
 		onDeleteZone: (id: string, e: MouseEvent) => void;
@@ -52,7 +60,8 @@
 		drawingMode,
 		fullFrameClasses,
 		selectedModel,
-		availableModels = [],
+		allModels = [],
+		downloadedModels = [],
 		onDrawingModeChange,
 		onZoneSelected,
 		onDeleteZone,
@@ -63,6 +72,9 @@
 		onFullFrameClassesChanged,
 		onModelChange
 	}: Props = $props();
+
+	// Helper: find model info for the currently selected model
+	const selectedModelInfo = $derived(allModels.find((m) => m.value === selectedModel));
 
 	let editingId = $state<string | null>(null);
 	let tempName = $state('');
@@ -131,12 +143,26 @@
 			}}
 		>
 			<Select.Trigger class="h-auto w-full">
-				<span>{selectedModel || 'Select model'}</span>
+				<div class="flex items-center gap-2">
+					<span class="font-medium">{selectedModelInfo?.label || selectedModel}</span>
+					<span class="text-xs text-muted-foreground">· {selectedModelInfo?.desc || ''}</span>
+				</div>
 			</Select.Trigger>
 			<Select.Content>
-				{#each availableModels as model}
-					<Select.Item value={model} label={model}>
-						<span class="font-medium">{model}</span>
+				{#each allModels as model}
+					<Select.Item value={model.value} label={model.label}>
+						<div class="flex w-full items-center justify-between gap-3">
+							<div class="flex flex-col">
+								<span class="font-medium">{model.label}</span>
+								<span class="text-[11px] text-muted-foreground">{model.desc} · {model.size}</span>
+							</div>
+							{#if !downloadedModels.some((d) => d.startsWith(model.value))}
+								<span
+									class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+									>not downloaded</span
+								>
+							{/if}
+						</div>
 					</Select.Item>
 				{/each}
 			</Select.Content>
