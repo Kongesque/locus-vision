@@ -10,7 +10,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Sun, Moon, Monitor, Database } from '@lucide/svelte';
+	import { Sun, Moon, Monitor, Database, LogOut } from '@lucide/svelte';
 	import { setMode, resetMode } from 'mode-watcher';
 
 	let { data, form }: { data: any; form: any } = $props();
@@ -25,6 +25,9 @@
 
 	// Delete own account confirmation
 	let deleteAccountDialog = $state(false);
+
+	// Sign out all devices confirmation
+	let signOutAllDialog = $state(false);
 </script>
 
 <svelte:head>
@@ -141,8 +144,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-lg">Security</Card.Title>
-			<Card.Description>Change your password. You'll be logged out after changing.</Card.Description
-			>
+			<Card.Description>Manage your password and active sessions</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form
@@ -200,6 +202,23 @@
 					</Button>
 				</div>
 			</form>
+
+			<div
+				class="mt-6 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+			>
+				<div class="space-y-0.5">
+					<div class="flex items-center gap-2">
+						<LogOut class="size-4 text-muted-foreground" />
+						<Label class="text-sm font-medium">Sign Out of All Devices</Label>
+					</div>
+					<p class="text-xs text-muted-foreground">
+						Revoke all active sessions. You will need to log in again on every device.
+					</p>
+				</div>
+				<Button variant="outline" size="sm" onclick={() => (signOutAllDialog = true)}>
+					Sign Out Everywhere
+				</Button>
+			</div>
 		</Card.Content>
 	</Card.Root>
 
@@ -498,6 +517,32 @@
 			<form method="POST" action="?/deleteAccount" use:enhance class="inline">
 				<Button type="submit" variant="destructive" onclick={() => (deleteAccountDialog = false)}
 					>Delete My Account</Button
+				>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Sign Out All Devices Confirmation Dialog -->
+<AlertDialog.Root
+	open={signOutAllDialog}
+	onOpenChange={(open) => {
+		if (!open) signOutAllDialog = false;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Sign Out of All Devices</AlertDialog.Title>
+			<AlertDialog.Description>
+				This will revoke all active sessions across every device. You will be signed out immediately
+				and will need to log in again.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (signOutAllDialog = false)}>Cancel</AlertDialog.Cancel>
+			<form method="POST" action="?/revokeSessions" use:enhance class="inline">
+				<Button type="submit" variant="destructive" onclick={() => (signOutAllDialog = false)}
+					>Sign Out Everywhere</Button
 				>
 			</form>
 		</AlertDialog.Footer>
