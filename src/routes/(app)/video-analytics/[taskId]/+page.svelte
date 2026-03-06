@@ -808,7 +808,7 @@
 				<span class="text-border">│</span>
 				<div class="flex shrink-0 items-center gap-1.5">
 					<HardDrive class="size-3 text-amber-400" />
-					<span class="text-[11px] font-semibold">12 FPS · DeepSort</span>
+					<span class="text-[11px] font-semibold">12 FPS · ByteTrack</span>
 				</div>
 				<span class="text-border">│</span>
 				<div class="flex shrink-0 items-center gap-1.5">
@@ -883,7 +883,7 @@
 								Analysis Context
 							</h4>
 							<p class="text-xs leading-relaxed text-muted-foreground">
-								Processed using high-accuracy tracking at 12fps. Objects tracked via DeepSort with
+								Processed using high-accuracy tracking at 12fps. Objects tracked via ByteTrack with
 								unique ID assignment. Export raw JSON to view per-frame detections.
 							</p>
 						</div>
