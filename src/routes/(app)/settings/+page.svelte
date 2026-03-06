@@ -204,40 +204,6 @@
 	</Card.Root>
 
 	<!-- ═══════════════════════════════════════════════════ -->
-	<!-- SESSIONS -->
-	<!-- ═══════════════════════════════════════════════════ -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-lg">Sessions</Card.Title>
-			<Card.Description>
-				You have {data.sessions?.length ?? 0} active session{(data.sessions?.length ?? 0) !== 1
-					? 's'
-					: ''}
-			</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			{#if data.sessions && data.sessions.length > 0}
-				<div class="mb-4 space-y-2">
-					{#each data.sessions as session}
-						<div class="flex items-center justify-between rounded-md border px-4 py-2 text-sm">
-							<span class="text-muted-foreground">
-								Created {new Date(session.created_at + 'Z').toLocaleDateString()}
-							</span>
-							<span class="text-muted-foreground">
-								Expires {new Date(session.expires_at + 'Z').toLocaleDateString()}
-							</span>
-						</div>
-					{/each}
-				</div>
-			{/if}
-
-			<form method="POST" action="?/revokeSessions" use:enhance>
-				<Button type="submit" variant="outline" class="w-full">Sign Out All Sessions</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
-
-	<!-- ═══════════════════════════════════════════════════ -->
 	<!-- ADMIN SECTION -->
 	<!-- ═══════════════════════════════════════════════════ -->
 	{#if data.user?.role === 'admin'}
@@ -325,7 +291,7 @@
 					class="mb-4 flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted"
 				>
 					<div class="space-y-0.5">
-						<Label class="text-sm font-medium cursor-pointer">Storage Metrics</Label>
+						<Label class="cursor-pointer text-sm font-medium">Storage Metrics</Label>
 						<p class="text-sm text-muted-foreground">
 							View disk usage, recordings, and database sizes
 						</p>

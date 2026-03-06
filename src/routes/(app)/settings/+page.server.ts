@@ -32,16 +32,9 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
         }
     }
 
-    // Fetch sessions
-    const sessionsRes = await fetch(`${API_BASE}/api/settings/sessions`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    const sessions = sessionsRes.ok ? await sessionsRes.json() : [];
-
     return {
         user: locals.user,
         users,
-        sessions,
         appSettings
     };
 };
