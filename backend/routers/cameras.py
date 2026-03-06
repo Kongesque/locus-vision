@@ -14,13 +14,6 @@ router = APIRouter(
 )
 
 
-@router.get("/models", response_model=List[str])
-async def list_models():
-    """List available AI models."""
-    from services.onnx_detector import list_models as list_onnx_models
-    return list_onnx_models()
-
-
 @router.get("", response_model=List[CameraResponse])
 async def list_cameras():
     """List all cameras."""

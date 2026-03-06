@@ -45,6 +45,14 @@
 	let selectedPrecision = $state<'fp32' | 'fp16' | 'int8'>('int8');
 	let downloadedModels = $state<string[]>([]);
 
+	// Model Download State
+	let modelDownloadStatus = $state<{ status: string; error?: string } | null>(null);
+	let isDownloadingModel = $derived(
+		modelDownloadStatus?.status === 'starting' ||
+			modelDownloadStatus?.status === 'downloading' ||
+			modelDownloadStatus?.status === 'exporting'
+	);
+
 	// Combine model size + precision into the final model name for the backend
 	const resolvedModelName = $derived.by(() => {
 		if (selectedPrecision === 'int8') return `${selectedModel}_int8`;
@@ -52,16 +60,69 @@
 		return selectedModel; // fp32 = no suffix
 	});
 
+	const isModelMissing = $derived(!downloadedModels.includes(resolvedModelName));
+
 	onMount(async () => {
+		await fetchDownloadedModels();
+	});
+
+	async function fetchDownloadedModels() {
 		try {
-			const res = await fetch('http://localhost:8000/api/cameras/models');
+			const res = await fetch('http://localhost:8000/api/models/registry');
 			if (res.ok) {
 				downloadedModels = await res.json();
 			}
 		} catch (err) {
 			console.error('Failed to fetch models:', err);
 		}
-	});
+	}
+
+	async function handleDownloadModel() {
+		try {
+			const res = await fetch('http://localhost:8000/api/models/download', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					model_name: selectedModel,
+					precision: selectedPrecision
+				})
+			});
+			if (!res.ok) throw new Error('Failed to start download');
+
+			modelDownloadStatus = await res.json();
+			pollDownloadStatus();
+		} catch (err) {
+			console.error(err);
+			modelDownloadStatus = { status: 'error', error: String(err) };
+		}
+	}
+
+	async function pollDownloadStatus() {
+		if (!isDownloadingModel) return;
+
+		try {
+			const res = await fetch('http://localhost:8000/api/models/download/status');
+			if (res.ok) {
+				const statuses = await res.json();
+				// The backend key is baseModel_precision e.g. "yolo11s_int8"
+				const jobKey = `${selectedModel}_${selectedPrecision}`;
+				if (statuses[jobKey]) {
+					modelDownloadStatus = statuses[jobKey];
+
+					if (modelDownloadStatus?.status === 'done') {
+						await fetchDownloadedModels(); // Refresh available models
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Failed to poll status:', err);
+		}
+
+		// Continue polling if still active
+		if (isDownloadingModel) {
+			setTimeout(pollDownloadStatus, 1000);
+		}
+	}
 
 	function handleZoneCreated(points: Point[]) {
 		const newZone: Zone = {
@@ -211,16 +272,23 @@
 				{selectedPrecision}
 				allModels={YOLO11_MODELS}
 				{downloadedModels}
+				{isModelMissing}
+				{isDownloadingModel}
+				{modelDownloadStatus}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
 				onZoneSelected={handleZoneSelected}
 				onDeleteZone={handleDeleteZone}
 				onProcess={handleProcess}
+				onDownloadModel={handleDownloadModel}
 				onZoneRenamed={handleZoneRenamed}
 				onZoneClassesChanged={handleZoneClassesChanged}
 				onZoneDirectionChanged={handleZoneDirectionChanged}
 				onFullFrameClassesChanged={(classes) => (fullFrameClasses = classes)}
 				onModelChange={(model) => (selectedModel = model)}
-				onPrecisionChange={(p: 'fp32' | 'fp16' | 'int8') => (selectedPrecision = p)}
+				onPrecisionChange={(p: 'fp32' | 'fp16' | 'int8') => {
+					selectedPrecision = p;
+					modelDownloadStatus = null; // reset status on change
+				}}
 			/>
 		</div>
 	</div>

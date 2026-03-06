@@ -44,10 +44,14 @@
 		selectedPrecision: 'fp32' | 'fp16' | 'int8';
 		allModels: ModelInfo[];
 		downloadedModels: string[];
+		isModelMissing: boolean;
+		isDownloadingModel: boolean;
+		modelDownloadStatus: { status: string; error?: string } | null;
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
 		onZoneSelected: (id: string | null) => void;
 		onDeleteZone: (id: string, e: MouseEvent) => void;
 		onProcess: () => void;
+		onDownloadModel: () => void;
 		onZoneRenamed: (id: string, name: string) => void;
 		onZoneClassesChanged: (id: string, classes: string[]) => void;
 		onZoneDirectionChanged: (id: string, direction: 'both' | 'in' | 'out') => void;
@@ -65,10 +69,14 @@
 		selectedPrecision,
 		allModels = [],
 		downloadedModels = [],
+		isModelMissing = false,
+		isDownloadingModel = false,
+		modelDownloadStatus = null,
 		onDrawingModeChange,
 		onZoneSelected,
 		onDeleteZone,
 		onProcess,
+		onDownloadModel,
 		onZoneRenamed,
 		onZoneClassesChanged,
 		onZoneDirectionChanged,
@@ -198,6 +206,53 @@
 				</ToggleGroup.Item>
 			</ToggleGroup.Root>
 		</div>
+
+		<!-- Download Status UI -->
+		{#if isModelMissing}
+			<div class="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+				<div class="flex flex-col gap-2">
+					<div class="text-xs font-medium text-amber-600 dark:text-amber-500">
+						Model not downloaded
+					</div>
+					<div class="text-[11px] text-muted-foreground">
+						This combination needs to be downloaded before processing.
+					</div>
+					{#if isDownloadingModel}
+						<div class="mt-1 flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<div
+									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+								></div>
+								<span class="text-xs font-medium capitalize">
+									{modelDownloadStatus?.status || 'Starting...'}
+								</span>
+							</div>
+						</div>
+					{:else if modelDownloadStatus?.status === 'error'}
+						<div class="mt-1 text-xs text-red-500">
+							Error: {modelDownloadStatus.error}
+						</div>
+						<Button
+							size="sm"
+							variant="outline"
+							class="mt-2 w-full text-xs"
+							onclick={onDownloadModel}
+						>
+							Retry Download
+						</Button>
+					{:else}
+						<Button
+							size="sm"
+							variant="outline"
+							class="mt-1 w-full text-xs"
+							onclick={onDownloadModel}
+						>
+							Auto-Download Now
+						</Button>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Tools & Zones -->
@@ -516,6 +571,12 @@
 
 	<div class="mt-auto pt-4">
 		<Separator class="my-4" />
-		<Button class="h-12 w-full" disabled={zones.length === 0} onclick={onProcess}>Process</Button>
+		<Button
+			class="h-12 w-full"
+			disabled={zones.length === 0 || isModelMissing || isDownloadingModel}
+			onclick={onProcess}
+		>
+			Process
+		</Button>
 	</div>
 </Card.Root>

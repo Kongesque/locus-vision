@@ -14,6 +14,7 @@ from routers.cameras import router as cameras_router
 from routers.system import router as system_router
 from routers.metrics import router as metrics_router
 from routers.analytics import router as analytics_router
+from routers.models import router as models_router
 
 from services.job_queue import job_queue
 from services.metrics_collector import metrics_collector
@@ -71,6 +72,7 @@ app.include_router(cameras_router)
 app.include_router(system_router)
 app.include_router(metrics_router)
 app.include_router(analytics_router)
+app.include_router(models_router)
 
 
 @app.get("/api/health")
