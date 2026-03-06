@@ -42,7 +42,15 @@
 	let drawingMode = $state<'polygon' | 'line'>('polygon');
 	let fullFrameClasses = $state<string[]>([]);
 	let selectedModel = $state<string>('yolo11n');
+	let selectedPrecision = $state<'fp32' | 'fp16' | 'int8'>('int8');
 	let downloadedModels = $state<string[]>([]);
+
+	// Combine model size + precision into the final model name for the backend
+	const resolvedModelName = $derived.by(() => {
+		if (selectedPrecision === 'int8') return `${selectedModel}_int8`;
+		if (selectedPrecision === 'fp16') return `${selectedModel}_half`;
+		return selectedModel; // fp32 = no suffix
+	});
 
 	onMount(async () => {
 		try {
@@ -123,7 +131,7 @@
 
 			formData.append('zones', JSON.stringify(normalizedZones));
 			formData.append('classes', JSON.stringify(fullFrameClasses));
-			formData.append('model_name', selectedModel);
+			formData.append('model_name', resolvedModelName);
 
 			// Fire-and-forget: upload in background
 			fetch(`http://localhost:8000/api/video/${taskId}/process`, {
@@ -156,7 +164,7 @@
 					body: JSON.stringify({
 						zones: JSON.stringify(normalizedZones),
 						classes: JSON.stringify(consolidatedClasses),
-						model_name: selectedModel
+						model_name: resolvedModelName
 					})
 				});
 
@@ -200,6 +208,7 @@
 				{drawingMode}
 				{fullFrameClasses}
 				{selectedModel}
+				{selectedPrecision}
 				allModels={YOLO11_MODELS}
 				{downloadedModels}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
@@ -211,6 +220,7 @@
 				onZoneDirectionChanged={handleZoneDirectionChanged}
 				onFullFrameClassesChanged={(classes) => (fullFrameClasses = classes)}
 				onModelChange={(model) => (selectedModel = model)}
+				onPrecisionChange={(p: 'fp32' | 'fp16' | 'int8') => (selectedPrecision = p)}
 			/>
 		</div>
 	</div>

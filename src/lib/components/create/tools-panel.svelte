@@ -41,6 +41,7 @@
 		drawingMode: 'polygon' | 'line';
 		fullFrameClasses: string[];
 		selectedModel: string;
+		selectedPrecision: 'fp32' | 'fp16' | 'int8';
 		allModels: ModelInfo[];
 		downloadedModels: string[];
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
@@ -52,6 +53,7 @@
 		onZoneDirectionChanged: (id: string, direction: 'both' | 'in' | 'out') => void;
 		onFullFrameClassesChanged: (classes: string[]) => void;
 		onModelChange: (model: string) => void;
+		onPrecisionChange: (precision: 'fp32' | 'fp16' | 'int8') => void;
 	}
 
 	let {
@@ -60,6 +62,7 @@
 		drawingMode,
 		fullFrameClasses,
 		selectedModel,
+		selectedPrecision,
 		allModels = [],
 		downloadedModels = [],
 		onDrawingModeChange,
@@ -70,7 +73,8 @@
 		onZoneClassesChanged,
 		onZoneDirectionChanged,
 		onFullFrameClassesChanged,
-		onModelChange
+		onModelChange,
+		onPrecisionChange
 	}: Props = $props();
 
 	// Helper: find model info for the currently selected model
@@ -167,6 +171,33 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
+
+		<!-- Inference Precision -->
+		<div class="mt-3">
+			<span class="mb-1.5 block text-[12px] font-medium text-muted-foreground"
+				>Inference Precision</span
+			>
+			<ToggleGroup.Root
+				type="single"
+				value={selectedPrecision}
+				onValueChange={(v) => v && onPrecisionChange(v as 'fp32' | 'fp16' | 'int8')}
+				class="w-full justify-stretch gap-1"
+			>
+				<ToggleGroup.Item value="int8" aria-label="INT8" class="flex-1 gap-1 text-xs">
+					INT8
+					<span
+						class="rounded bg-green-500/20 px-1 py-0.5 text-[9px] font-medium text-green-600 dark:text-green-400"
+						>RPi</span
+					>
+				</ToggleGroup.Item>
+				<ToggleGroup.Item value="fp16" aria-label="FP16" class="flex-1 text-xs">
+					FP16
+				</ToggleGroup.Item>
+				<ToggleGroup.Item value="fp32" aria-label="FP32" class="flex-1 text-xs">
+					FP32
+				</ToggleGroup.Item>
+			</ToggleGroup.Root>
+		</div>
 	</div>
 
 	<!-- Tools & Zones -->
