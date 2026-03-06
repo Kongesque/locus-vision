@@ -555,7 +555,7 @@
 			<div class="flex flex-col">
 				<div class="flex items-center gap-2">
 					<h1 class="text-lg font-semibold tracking-tight">
-						{task ? task.filename : `Task ${taskId?.slice(0, 8) ?? '—'}`}
+						{task ? (task.name || task.filename) : `Task ${taskId?.slice(0, 8) ?? '—'}`}
 					</h1>
 					<!-- Status badge -->
 					<span
@@ -576,12 +576,6 @@
 						{statusLabel}
 					</span>
 				</div>
-				<p class="text-xs text-muted-foreground">
-					{task ? `${task.model_name || 'yolo11n'} · ${task.duration || '--:--'}` : 'Loading...'}
-					{#if taskProgress > 0 && status === 'processing'}
-						· {taskProgress}%
-					{/if}
-				</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2">
