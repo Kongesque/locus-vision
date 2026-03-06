@@ -286,7 +286,6 @@
 				{isDownloadingModel}
 				{modelDownloadStatus}
 				{fps}
-				{defaultFps}
 				onDrawingModeChange={(mode) => (drawingMode = mode)}
 				onZoneSelected={handleZoneSelected}
 				onDeleteZone={handleDeleteZone}

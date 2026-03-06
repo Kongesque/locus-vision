@@ -60,7 +60,6 @@
 		onModelChange: (model: string) => void;
 		onPrecisionChange: (precision: 'fp32' | 'fp16' | 'int8') => void;
 		fps: number;
-		defaultFps: number;
 		onFpsChange: (fps: number) => void;
 	}
 
@@ -88,7 +87,6 @@
 		onModelChange,
 		onPrecisionChange,
 		fps,
-		defaultFps,
 		onFpsChange
 	}: Props = $props();
 
@@ -305,19 +303,44 @@
 	<div>
 		<div class="mb-2 flex items-center justify-between">
 			<div class="font-semibold text-foreground">FPS</div>
-			<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{fps}</span
-			>
+			<Tooltip.Root>
+				<Tooltip.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+					<Info class="h-4 w-4" />
+					<span class="sr-only">Info</span>
+				</Tooltip.Trigger>
+				<Tooltip.Content side="left">
+					<p>Higher = smoother but heavier.</p>
+					<p>Lower = lighter but choppy.</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
 		</div>
-		<Slider value={[fps]} min={1} max={60} step={1} onValueChange={(v) => onFpsChange(v[0])} />
-		<div class="mt-1 flex justify-between text-[10px] text-muted-foreground">
-			<span>1</span>
-			<button
-				class="cursor-pointer text-[10px] text-primary hover:underline"
-				onclick={() => onFpsChange(defaultFps)}
-			>
-				Reset to {defaultFps}
-			</button>
-			<span>60</span>
+		<div class="flex items-center gap-4">
+			<Slider
+				type="single"
+				value={fps}
+				min={5}
+				max={30}
+				step={1}
+				onValueChange={(v: number) => onFpsChange(v)}
+				class="flex-1"
+			/>
+			<Input
+				type="number"
+				min={5}
+				max={30}
+				value={fps}
+				oninput={(e) => {
+					const val = parseInt(e.currentTarget.value);
+					if (!isNaN(val) && val >= 5 && val <= 30) {
+						onFpsChange(val);
+					}
+				}}
+				onblur={(e) => {
+					// Snap back to current fps if empty or invalid on blur
+					e.currentTarget.value = String(fps);
+				}}
+				class="h-8 w-16 px-2 text-center font-mono text-xs"
+			/>
 		</div>
 	</div>
 
