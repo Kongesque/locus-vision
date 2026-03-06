@@ -50,7 +50,7 @@
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
 		onZoneSelected: (id: string | null) => void;
 		onDeleteZone: (id: string, e: MouseEvent) => void;
-		onProcess: () => void;
+		onProcess: (mode: 'zone-based' | 'full-frame') => void;
 		onDownloadModel: () => void;
 		onZoneRenamed: (id: string, name: string) => void;
 		onZoneClassesChanged: (id: string, classes: string[]) => void;
@@ -94,6 +94,8 @@
 	// Combobox states
 	let openZoneCombobox = $state<string | null>(null); // zone id
 	let openFullFrameCombobox = $state(false);
+
+	let activeTab = $state<'zone-based' | 'full-frame'>('zone-based');
 
 	function handleStartEditing(id: string, currentName: string) {
 		editingId = id;
@@ -308,7 +310,7 @@
 			</Tooltip.Root>
 		</div>
 
-		<Tabs.Root value="zone-based" class="w-full">
+		<Tabs.Root bind:value={activeTab} class="w-full">
 			<Tabs.List class="w-full">
 				<Tabs.Trigger value="zone-based" class="flex-1">Zone based</Tabs.Trigger>
 				<Tabs.Trigger value="full-frame" class="flex-1">Full frame</Tabs.Trigger>
@@ -610,8 +612,10 @@
 		<Separator class="my-4" />
 		<Button
 			class="h-12 w-full"
-			disabled={zones.length === 0 || isModelMissing || isDownloadingModel}
-			onclick={onProcess}
+			disabled={(activeTab === 'zone-based' && zones.length === 0) ||
+				isModelMissing ||
+				isDownloadingModel}
+			onclick={() => onProcess(activeTab)}
 		>
 			Process
 		</Button>

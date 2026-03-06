@@ -166,11 +166,15 @@
 		}
 	}
 
-	async function handleProcess() {
+	async function handleProcess(mode: 'zone-based' | 'full-frame') {
 		if (!videoStore.videoUrl && videoStore.videoType !== 'stream') {
 			alert('No video or stream source available');
 			return;
 		}
+
+		// Depending on the mode, determine what to send to the backend
+		const finalZones = mode === 'full-frame' ? [] : zones;
+		const finalGlobalClasses = mode === 'zone-based' ? [] : fullFrameClasses;
 
 		if (videoStore.videoType === 'file' && videoStore.videoUrl) {
 			// --- Existing File Upload Flow ---
@@ -182,7 +186,7 @@
 			const formData = new FormData();
 			formData.append('video', file);
 			// Normalize zones to relative coordinates [0.0 - 1.0]
-			const normalizedZones = zones.map((z) => ({
+			const normalizedZones = finalZones.map((z) => ({
 				...z,
 				points: z.points.map((p) => ({
 					x: videoNaturalWidth ? p.x / videoNaturalWidth : 0,
@@ -191,7 +195,7 @@
 			}));
 
 			formData.append('zones', JSON.stringify(normalizedZones));
-			formData.append('classes', JSON.stringify(fullFrameClasses));
+			formData.append('classes', JSON.stringify(finalGlobalClasses));
 			formData.append('model_name', resolvedModelName);
 
 			// Fire-and-forget: upload in background
@@ -206,7 +210,7 @@
 			// --- Camera Analytics Flow ---
 			try {
 				// Normalize zones to relative coordinates [0.0 - 1.0] before sending to backend
-				const normalizedZones = zones.map((z) => ({
+				const normalizedZones = finalZones.map((z) => ({
 					...z,
 					points: z.points.map((p) => ({
 						x: videoNaturalWidth ? p.x / videoNaturalWidth : 0,
@@ -216,7 +220,7 @@
 
 				// Consolidate classes to ensure Activity Feed shows all selected classes
 				const consolidatedClasses = Array.from(
-					new Set([...fullFrameClasses, ...zones.flatMap((z) => z.classes || [])])
+					new Set([...finalGlobalClasses, ...finalZones.flatMap((z) => z.classes || [])])
 				);
 
 				const response = await fetch(`http://localhost:8000/api/cameras/${taskId}`, {
