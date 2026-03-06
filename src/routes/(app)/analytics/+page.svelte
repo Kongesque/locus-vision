@@ -220,15 +220,15 @@
 		</div>
 	{:else}
 		<!-- KPIs -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<div
 				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
 			>
-				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+				<div class="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Total Detections</h3>
 					<Users class="h-4 w-4 text-primary" />
 				</div>
-				<div class="p-6 pt-0">
+				<div class="p-4 pt-0">
 					<div class="text-2xl font-bold">{totalVisitors.toLocaleString()}</div>
 					<p class="text-xs text-muted-foreground">Unique objects tracked</p>
 				</div>
@@ -236,11 +236,11 @@
 			<div
 				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
 			>
-				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+				<div class="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Avg Dwell Time</h3>
 					<Clock class="h-4 w-4 text-primary" />
 				</div>
-				<div class="p-6 pt-0">
+				<div class="p-4 pt-0">
 					<div class="text-2xl font-bold">{avgDwell.toFixed(1)}s</div>
 					<p class="text-xs text-muted-foreground">Average time spent in zones</p>
 				</div>
@@ -248,11 +248,11 @@
 			<div
 				class="rounded-xl border bg-gradient-to-br from-card to-muted/50 text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
 			>
-				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+				<div class="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Data Points</h3>
 					<BarChart3 class="h-4 w-4 text-primary" />
 				</div>
-				<div class="p-6 pt-0">
+				<div class="p-4 pt-0">
 					<div class="text-2xl font-bold">{exportData.length}</div>
 					<p class="text-xs text-muted-foreground">Aggregated hourly buckets</p>
 				</div>
@@ -260,11 +260,11 @@
 			<div
 				class="rounded-xl border bg-gradient-to-br from-amber-500/10 to-card text-card-foreground shadow transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
 			>
-				<div class="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
+				<div class="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<h3 class="text-sm font-medium tracking-tight">Peak Hour</h3>
 					<TrendingUp class="h-4 w-4 text-amber-500" />
 				</div>
-				<div class="p-6 pt-0">
+				<div class="p-4 pt-0">
 					{#if peakHoursData && peakHoursData.total_events > 0}
 						<div class="text-2xl font-bold">{formatHourLong(peakHoursData.peak_hour)}</div>
 						<p class="text-xs text-muted-foreground">
@@ -280,13 +280,13 @@
 
 		<!-- Peak Hours Chart -->
 		<div class="rounded-xl border bg-card text-card-foreground shadow">
-			<div class="flex flex-col space-y-1.5 border-b p-6">
-				<h3 class="flex items-center gap-2 leading-none font-semibold tracking-tight">
+			<div class="flex flex-col space-y-1.5 border-b p-4">
+				<h3 class="flex items-center gap-2 text-sm font-semibold leading-none tracking-tight">
 					<TrendingUp class="h-4 w-4 text-amber-500" /> Peak Hours Distribution
 				</h3>
-				<p class="text-sm text-muted-foreground">Zone traffic by hour of day</p>
+				<p class="text-xs text-muted-foreground">Zone traffic by hour of day</p>
 			</div>
-			<div class="p-6">
+			<div class="p-4">
 				{#if peakHoursData && peakHoursData.total_events > 0}
 					<div class="flex h-[220px] items-end gap-[3px]">
 						{#each peakHoursData.hours as h (h.hour)}
@@ -336,11 +336,11 @@
 		</div>
 
 		<!-- Main Charts Area -->
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+		<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 			<!-- Heatmap / Spaghetti Map -->
 			<div class="col-span-1 flex flex-col rounded-xl border bg-card text-card-foreground shadow">
-				<div class="flex flex-col space-y-1.5 border-b p-6">
-					<h3 class="flex items-center gap-2 leading-none font-semibold tracking-tight">
+				<div class="flex flex-col space-y-1.5 border-b p-4">
+					<h3 class="flex items-center gap-2 text-sm font-semibold leading-none tracking-tight">
 						<Map class="h-4 w-4 text-blue-500" /> Movement Heatmap
 					</h3>
 				</div>
@@ -368,11 +368,11 @@
 
 			<!-- Aggregated List -->
 			<div class="col-span-1 rounded-xl border bg-card text-card-foreground shadow">
-				<div class="flex flex-col space-y-1.5 border-b p-6">
-					<h3 class="flex items-center gap-2 leading-none font-semibold tracking-tight">
+				<div class="flex flex-col space-y-1.5 border-b p-4">
+					<h3 class="flex items-center gap-2 text-sm font-semibold leading-none tracking-tight">
 						<Calendar class="h-4 w-4 text-purple-500" /> Hourly Zone Telemetry
 					</h3>
-					<p class="text-sm text-muted-foreground">Recent data buckets</p>
+					<p class="text-xs text-muted-foreground">Recent data buckets</p>
 				</div>
 				<div class="p-0">
 					<div class="relative max-h-[480px] w-full overflow-auto">
