@@ -108,7 +108,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     // Redirect authenticated users away from auth pages
-    if (event.locals.user && isPublicPath) {
+    if (event.locals.user && isPublicPath && !path.startsWith('/logout')) {
         throw redirect(303, '/');
     }
 
