@@ -10,7 +10,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Sun, Moon, Monitor, Database, LogOut } from '@lucide/svelte';
+	import { Sun, Moon, Monitor, Database, LogOut, AlertTriangle } from '@lucide/svelte';
 	import { setMode, resetMode } from 'mode-watcher';
 
 	let { data, form }: { data: any; form: any } = $props();
@@ -19,12 +19,15 @@
 	// Delete user confirmation
 	let deleteUserId = $state<number | null>(null);
 	let deleteUserName = $state('');
+	let deleteUserConfirmText = $state('');
 
 	// Delete all media confirmation
 	let deleteAllMediaDialog = $state(false);
+	let deleteMediaConfirmText = $state('');
 
 	// Delete own account confirmation
 	let deleteAccountDialog = $state(false);
+	let deleteAccountConfirmText = $state('');
 
 	// Sign out all devices confirmation
 	let signOutAllDialog = $state(false);
@@ -89,27 +92,15 @@
 				</div>
 			</form>
 
-			<div
-				class="mt-6 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
-			>
-				<div class="space-y-0.5">
-					<Label class="text-sm font-medium">Account Actions</Label>
-					<p class="text-xs text-muted-foreground">
-						Log out of your account or permanently delete it.
-					</p>
-				</div>
-				<div class="flex flex-wrap items-center gap-2">
+			<div class="mt-6 flex flex-col gap-4 border-t pt-4">
+				<div class="flex items-center justify-between">
+					<div class="space-y-0.5">
+						<Label class="text-sm font-medium">Sign Out</Label>
+						<p class="text-xs text-muted-foreground">Log out of your account on this device.</p>
+					</div>
 					<form method="POST" action="/logout">
 						<Button type="submit" variant="outline" size="sm">Log Out</Button>
 					</form>
-					<Button
-						type="button"
-						variant="destructive"
-						size="sm"
-						onclick={() => (deleteAccountDialog = true)}
-					>
-						Delete Account
-					</Button>
 				</div>
 			</div>
 		</Card.Content>
@@ -443,6 +434,34 @@
 				</Table.Root>
 			</Card.Content>
 		</Card.Root>
+
+		<!-- DANGER ZONE -->
+		<Card.Root class="border-destructive/50 bg-destructive/5">
+			<Card.Header>
+				<div class="flex items-center gap-2">
+					<AlertTriangle class="size-5 text-destructive" />
+					<Card.Title class="text-lg text-destructive">Danger Zone</Card.Title>
+				</div>
+				<Card.Description class="text-destructive/80">
+					Destructive actions that cannot be undone. Proceed with caution.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				<div
+					class="flex items-center justify-between rounded-lg border border-destructive/20 bg-background p-4"
+				>
+					<div class="space-y-0.5">
+						<p class="font-medium">Delete Account</p>
+						<p class="text-sm text-muted-foreground">
+							Permanently delete your account and all associated data.
+						</p>
+					</div>
+					<Button variant="destructive" size="sm" onclick={() => (deleteAccountDialog = true)}>
+						Delete Account
+					</Button>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	{/if}
 </div>
 
@@ -450,22 +469,49 @@
 <AlertDialog.Root
 	open={deleteUserId !== null}
 	onOpenChange={(open) => {
-		if (!open) deleteUserId = null;
+		if (!open) {
+			deleteUserId = null;
+			deleteUserConfirmText = '';
+		}
 	}}
 >
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Delete User</AlertDialog.Title>
+			<AlertDialog.Title class="flex items-center gap-2">
+				<AlertTriangle class="size-5 text-destructive" />
+				Delete User
+			</AlertDialog.Title>
 			<AlertDialog.Description>
 				Are you sure you want to delete <strong>{deleteUserName}</strong>? This action cannot be
 				undone. All their data and sessions will be permanently removed.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
+		<div class="py-4">
+			<Label for="confirm-delete-user" class="text-sm font-medium">
+				Type <code class="rounded bg-muted px-1">DELETE</code> to confirm
+			</Label>
+			<Input
+				id="confirm-delete-user"
+				type="text"
+				placeholder="Type DELETE to confirm"
+				bind:value={deleteUserConfirmText}
+				class="mt-2"
+			/>
+		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteUserId = null)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel
+				onclick={() => {
+					deleteUserId = null;
+					deleteUserConfirmText = '';
+				}}
+			>
+				Cancel
+			</AlertDialog.Cancel>
 			<form method="POST" action="?/deleteUser" use:enhance class="inline">
 				<input type="hidden" name="user_id" value={deleteUserId} />
-				<Button type="submit" variant="destructive">Delete User</Button>
+				<Button type="submit" variant="destructive" disabled={deleteUserConfirmText !== 'DELETE'}>
+					Delete User
+				</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -475,23 +521,56 @@
 <AlertDialog.Root
 	open={deleteAllMediaDialog}
 	onOpenChange={(open) => {
-		if (!open) deleteAllMediaDialog = false;
+		if (!open) {
+			deleteAllMediaDialog = false;
+			deleteMediaConfirmText = '';
+		}
 	}}
 >
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Delete All Media</AlertDialog.Title>
+			<AlertDialog.Title class="flex items-center gap-2">
+				<AlertTriangle class="size-5 text-destructive" />
+				Delete All Media
+			</AlertDialog.Title>
 			<AlertDialog.Description>
 				Are you sure you want to delete all videos, processing tasks, and camera configurations?
 				This action cannot be undone and all physical media files will be permanently removed.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
+		<div class="py-4">
+			<Label for="confirm-delete-media" class="text-sm font-medium">
+				Type <code class="rounded bg-muted px-1">DELETE</code> to confirm
+			</Label>
+			<Input
+				id="confirm-delete-media"
+				type="text"
+				placeholder="Type DELETE to confirm"
+				bind:value={deleteMediaConfirmText}
+				class="mt-2"
+			/>
+		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteAllMediaDialog = false)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel
+				onclick={() => {
+					deleteAllMediaDialog = false;
+					deleteMediaConfirmText = '';
+				}}
+			>
+				Cancel
+			</AlertDialog.Cancel>
 			<form method="POST" action="?/deleteAllMedia" use:enhance class="inline">
-				<Button type="submit" variant="destructive" onclick={() => (deleteAllMediaDialog = false)}
-					>Delete All</Button
+				<Button
+					type="submit"
+					variant="destructive"
+					disabled={deleteMediaConfirmText !== 'DELETE'}
+					onclick={() => {
+						deleteAllMediaDialog = false;
+						deleteMediaConfirmText = '';
+					}}
 				>
+					Delete All
+				</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -501,23 +580,56 @@
 <AlertDialog.Root
 	open={deleteAccountDialog}
 	onOpenChange={(open) => {
-		if (!open) deleteAccountDialog = false;
+		if (!open) {
+			deleteAccountDialog = false;
+			deleteAccountConfirmText = '';
+		}
 	}}
 >
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Delete Account</AlertDialog.Title>
+			<AlertDialog.Title class="flex items-center gap-2">
+				<AlertTriangle class="size-5 text-destructive" />
+				Delete Account
+			</AlertDialog.Title>
 			<AlertDialog.Description>
 				Are you sure you want to delete your account? This action cannot be undone and you will lose
-				access immediately.
+				access immediately. All your data will be permanently removed.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
+		<div class="py-4">
+			<Label for="confirm-delete-account" class="text-sm font-medium">
+				Type <code class="rounded bg-muted px-1">DELETE</code> to confirm
+			</Label>
+			<Input
+				id="confirm-delete-account"
+				type="text"
+				placeholder="Type DELETE to confirm"
+				bind:value={deleteAccountConfirmText}
+				class="mt-2"
+			/>
+		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteAccountDialog = false)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel
+				onclick={() => {
+					deleteAccountDialog = false;
+					deleteAccountConfirmText = '';
+				}}
+			>
+				Cancel
+			</AlertDialog.Cancel>
 			<form method="POST" action="?/deleteAccount" use:enhance class="inline">
-				<Button type="submit" variant="destructive" onclick={() => (deleteAccountDialog = false)}
-					>Delete My Account</Button
+				<Button
+					type="submit"
+					variant="destructive"
+					disabled={deleteAccountConfirmText !== 'DELETE'}
+					onclick={() => {
+						deleteAccountDialog = false;
+						deleteAccountConfirmText = '';
+					}}
 				>
+					Delete My Account
+				</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
