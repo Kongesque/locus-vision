@@ -10,8 +10,17 @@
 	import { videoStore } from '$lib/stores/video.svelte';
 
 	import { untrack } from 'svelte';
+	import { addCameraDialogOpen } from '$lib/stores/add-camera-dialog.svelte';
 
 	let open = $state(false);
+
+	// Subscribe to external dialog control
+	addCameraDialogOpen.subscribe((value) => {
+		if (value) {
+			open = true;
+			addCameraDialogOpen.set(false);
+		}
+	});
 	let activeTab = $state('rtsp');
 	let isConnecting = $state(false);
 

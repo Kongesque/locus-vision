@@ -22,6 +22,8 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { goto } from '$app/navigation';
+	import { addCameraDialogOpen } from '$lib/stores/add-camera-dialog.svelte';
 
 	// ── Types ──────────────────────────────────────────────
 	interface SystemStats {
@@ -162,6 +164,11 @@
 		if (status === 'processing') return 'text-blue-500 animate-spin';
 		if (status === 'failed') return 'text-red-500';
 		return 'text-muted-foreground';
+	}
+
+	function openAddCameraDialog() {
+		addCameraDialogOpen.set(true);
+		goto('/livestream');
 	}
 </script>
 
@@ -455,12 +462,10 @@
 					</div>
 				</Card.Header>
 				<Card.Content class="flex flex-1 flex-col gap-2">
-					<a href="/create" class="w-full">
-						<Button variant="outline" class="w-full justify-start gap-2">
-							<Plus class="h-4 w-4" />
-							New Camera Stream
-						</Button>
-					</a>
+					<Button variant="outline" class="w-full justify-start gap-2" onclick={openAddCameraDialog}>
+						<Plus class="h-4 w-4" />
+						New Camera Stream
+					</Button>
 					<a href="/video-analytics" class="w-full">
 						<Button variant="outline" class="w-full justify-start gap-2">
 							<Upload class="h-4 w-4" />
