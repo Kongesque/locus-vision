@@ -28,7 +28,7 @@
 	let isDiscovering = $state(false);
 	interface DiscoveredCamera {
 		name: string;
-		type: 'v4l2' | 'onvif';
+		type: 'v4l2' | 'onvif' | 'local';
 		url: string;
 		id: string;
 	}
@@ -92,9 +92,9 @@
 				config = {
 					id: cameraId,
 					name: cam.name,
-					type: cam.type === 'v4l2' ? 'stream' : 'rtsp',
+					type: (cam.type === 'v4l2' || cam.type === 'local') ? 'stream' : 'rtsp',
 					url: cam.type === 'onvif' ? cam.url : null,
-					device_id: cam.type === 'v4l2' ? cam.url : null
+					device_id: (cam.type === 'v4l2' || cam.type === 'local') ? cam.url : null
 				};
 			} else {
 				config = {

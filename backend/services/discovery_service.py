@@ -1,4 +1,5 @@
 import subprocess
+import platform
 import socket
 import re
 import cv2
@@ -9,16 +10,32 @@ class DiscoveryService:
     """Service to discover local (V4L2) and network (ONVIF) cameras."""
 
     @staticmethod
-    async def discover_v4l2_devices() -> List[Dict[str, Any]]:
-        """Discover local video devices (USB webcams, CSI cameras)."""
-        devices = []
+    def _get_macos_camera_names() -> List[str]:
+        """Get camera names on macOS via system_profiler."""
+        names = []
         try:
-            # Try using v4l2-ctl for better labels
+            result = subprocess.run(
+                ['system_profiler', 'SPCameraDataType'],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    # Camera names appear as top-level entries ending with ':'
+                    # e.g. "FaceTime HD Camera (Built-in):"
+                    if line.endswith(':') and not line.startswith('Camera') and 'SPCamera' not in line:
+                        names.append(line.rstrip(':').strip())
+        except Exception:
+            pass
+        return names
+
+    @staticmethod
+    def _discover_v4l2(devices: List[Dict[str, Any]]) -> None:
+        """Try Linux v4l2-ctl discovery."""
+        try:
             result = subprocess.run(
                 ['v4l2-ctl', '--list-devices'],
-                capture_output=True,
-                text=True,
-                timeout=2
+                capture_output=True, text=True, timeout=2
             )
             if result.returncode == 0:
                 sections = result.stdout.strip().split('\n\n')
@@ -26,20 +43,10 @@ class DiscoveryService:
                     lines = section.split('\n')
                     if not lines:
                         continue
-                    
                     label = lines[0].strip()
-                    # Example section:
-                    # USB Camera: USB Camera (usb-0000:00:14.0-1):
-                    #         /dev/video0
-                    #         /dev/video1
-                    
-                    # Find all /dev/video* devices in this section
                     for line in lines[1:]:
                         if '/dev/video' in line:
                             dev_path = line.strip().split(' ')[0]
-                            # Only include the primary device (usually the even number)
-                            # or just include it if it's the first one we find for this label
-                            # To be safe and simple, we'll try to open it with OpenCV
                             cap = cv2.VideoCapture(dev_path)
                             if cap.isOpened():
                                 ret, _ = cap.read()
@@ -51,26 +58,45 @@ class DiscoveryService:
                                         "url": dev_path,
                                         "id": dev_path
                                     })
-                                    break # Usually first one is the video stream
-            
-            # Fallback specifically for Pi if v4l2-ctl failed or returned nothing
-            if not devices:
-                for i in range(10):
-                    dev_path = f"/dev/video{i}"
-                    cap = cv2.VideoCapture(i)
-                    if cap.isOpened():
-                        ret, _ = cap.read()
-                        cap.release()
-                        if ret:
-                            devices.append({
-                                "name": f"Local Camera {i}",
-                                "type": "v4l2",
-                                "url": dev_path,
-                                "id": dev_path
-                            })
+                                    break
+        except FileNotFoundError:
+            pass  # v4l2-ctl not installed (e.g. macOS) — handled by fallback
         except Exception as e:
-            print(f"V4L2 Discovery error: {e}")
-            
+            print(f"[Discovery] v4l2-ctl error: {e}")
+
+    @staticmethod
+    async def discover_local_devices() -> List[Dict[str, Any]]:
+        """Discover local video devices (USB webcams, CSI cameras, built-in cameras)."""
+        devices: List[Dict[str, Any]] = []
+
+        # Step 1: On Linux, try v4l2-ctl for labeled device info
+        if platform.system() == 'Linux':
+            DiscoveryService._discover_v4l2(devices)
+
+        # Step 2: If v4l2-ctl didn't find anything, probe with OpenCV indices
+        # This works on all platforms (macOS AVFoundation, Linux V4L2, Windows MSMF)
+        if not devices:
+            # On macOS, get friendly camera names
+            mac_names = []
+            if platform.system() == 'Darwin':
+                mac_names = DiscoveryService._get_macos_camera_names()
+
+            for i in range(10):
+                cap = cv2.VideoCapture(i)
+                if cap.isOpened():
+                    ret, _ = cap.read()
+                    cap.release()
+                    if ret:
+                        name = mac_names[len(devices)] if len(devices) < len(mac_names) else f"Camera {i}"
+                        devices.append({
+                            "name": name,
+                            "type": "local",
+                            "url": str(i),
+                            "id": f"local:{i}"
+                        })
+                else:
+                    cap.release()
+
         return devices
 
     @staticmethod
@@ -151,10 +177,10 @@ class DiscoveryService:
 
     async def discover_all(self) -> List[Dict[str, Any]]:
         """Combine all discovery methods."""
-        v4l2_task = asyncio.create_task(self.discover_v4l2_devices())
+        local_task = asyncio.create_task(self.discover_local_devices())
         onvif_task = asyncio.create_task(self.discover_onvif_devices())
         
-        v4l2_results, onvif_results = await asyncio.gather(v4l2_task, onvif_task)
-        return v4l2_results + onvif_results
+        local_results, onvif_results = await asyncio.gather(local_task, onvif_task)
+        return local_results + onvif_results
 
 discovery_service = DiscoveryService()
