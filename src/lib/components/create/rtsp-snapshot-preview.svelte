@@ -78,8 +78,8 @@
 	function initStream() {
 		if (!url) return;
 
-		// Non-HLS (RTSP / local device): rendered as MJPEG <img> in template.
-		// isLoading is cleared by the img's onload handler.
+		// Non-HLS (RTSP / local device): a static snapshot is shown for zone drawing.
+		// isLoading is cleared by the img's onload handler in the template.
 		if (!isHlsUrl(url)) return;
 
 		if (!videoRef) return;
@@ -195,14 +195,14 @@
 				onresize={updateDims}
 			></video>
 		{:else}
-			<!-- MJPEG stream for RTSP / local cameras -->
+			<!-- Static snapshot for zone drawing — no inference, reliable onload -->
 			<img
 				bind:this={videoRef as any}
-				src={`http://localhost:8000/api/livestream/${cameraId}/video`}
-				alt="Camera stream"
+				src={`http://localhost:8000/api/cameras/snapshot?source=${encodeURIComponent(url)}`}
+				alt="Camera snapshot"
 				class="pointer-events-none max-h-full max-w-full object-contain"
 				onload={() => { isLoading = false; updateDims(); }}
-				onresize={updateDims}
+				onerror={() => { isLoading = false; error = 'Failed to load camera snapshot'; }}
 				crossorigin="anonymous"
 			/>
 		{/if}
