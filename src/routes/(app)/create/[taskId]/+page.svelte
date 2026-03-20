@@ -212,7 +212,7 @@
 			}).catch((err) => console.error('Upload failed:', err));
 
 			// Redirect immediately to task result page
-			goto(`/video-analytics/${taskId}`);
+			goto(`/video-analytics/${taskId}`, { replaceState: true });
 		} else {
 			// --- Camera Analytics Flow ---
 			try {
@@ -247,7 +247,7 @@
 					throw new Error(errData.detail || 'Failed to save camera configuration');
 				}
 
-				goto(`/livestream/${taskId}`);
+				goto(`/livestream/${taskId}`, { replaceState: true });
 			} catch (err) {
 				console.error(err);
 				alert('Camera configuration error: ' + String(err));
