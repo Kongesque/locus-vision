@@ -275,7 +275,7 @@
 		</Card.Root>
 
 		<!-- Right: Tools -->
-		<div class="flex min-w-[350px] flex-1 flex-col">
+		<div class="flex min-w-[350px] flex-1 flex-col min-h-0 overflow-hidden">
 			<ToolsPanel
 				{zones}
 				{selectedZoneId}
