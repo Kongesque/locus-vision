@@ -196,6 +196,11 @@ class MetricsCollector:
         with self._camera_lock:
             if camera_id in self._camera_metrics:
                 self._camera_metrics[camera_id].is_active = False
+
+    def remove_camera(self, camera_id: str):
+        """Fully remove a camera from metrics tracking."""
+        with self._camera_lock:
+            self._camera_metrics.pop(camera_id, None)
     
     def record_camera_frame(self, camera_id: str, processed: bool = True, 
                            had_detection: bool = False, inference_ms: float = 0):

@@ -3,6 +3,7 @@ import os
 import shutil
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from services.livestream_manager import livestream_manager
 
 from auth import (
     hash_password,
@@ -370,7 +371,10 @@ async def delete_all_media(admin: dict = Depends(_require_admin)):
                         shutil.rmtree(file_path)
                 except Exception as e:
                     logging.error(f"Failed to delete {file_path}. Reason: {e}")
-                    
+
+        # 3. Stop all active livestream processes so UI syncs immediately
+        livestream_manager.stop_all_streams()
+
         return MessageResponse(message="All videos and streams have been permanently deleted.")
     except Exception as e:
         logging.error(f"Error deleting media: {e}")

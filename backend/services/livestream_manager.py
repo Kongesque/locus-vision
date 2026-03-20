@@ -38,6 +38,21 @@ class LivestreamManager:
                 self.active_streams[camera_id].start()
             return self.active_streams[camera_id]
 
+    def stop_stream(self, camera_id: str):
+        """Stop and remove a stream by camera ID."""
+        with self.lock:
+            stream = self.active_streams.pop(camera_id, None)
+        if stream:
+            stream.stop()
+
+    def stop_all_streams(self):
+        """Stop all active streams."""
+        with self.lock:
+            streams = list(self.active_streams.values())
+            self.active_streams.clear()
+        for stream in streams:
+            stream.stop()
+
 class StreamContext:
     def __init__(self, camera_id: str, zones=None, classes=None, model_name="yolo11n", fps=24, source=None, enable_hw_accel=True):
         self.camera_id = camera_id
@@ -87,7 +102,7 @@ class StreamContext:
         self._running = False
         if self._thread:
             self._thread.join(timeout=2)
-        metrics_collector.unregister_camera(self.camera_id)
+        metrics_collector.remove_camera(self.camera_id)
         # Final flush
         self._flush_duckdb()
 

@@ -10,6 +10,7 @@ from typing import List
 from database import get_db
 from models import CameraCreate, CameraUpdate, CameraResponse
 from services.discovery_service import discovery_service
+from services.livestream_manager import livestream_manager
 
 router = APIRouter(
     prefix="/api/cameras",
@@ -251,6 +252,10 @@ async def delete_camera(camera_id: str):
 
         await db.execute("DELETE FROM cameras WHERE id = ?", (camera_id,))
         await db.commit()
-        return JSONResponse({"message": "Camera deleted"})
     finally:
         await db.close()
+
+    # Stop the livestream process and purge metrics so the UI syncs immediately
+    livestream_manager.stop_stream(camera_id)
+
+    return JSONResponse({"message": "Camera deleted"})
