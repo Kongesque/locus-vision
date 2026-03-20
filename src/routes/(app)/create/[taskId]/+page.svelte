@@ -44,7 +44,7 @@
 	let selectedModel = $state<string>('yolo11n');
 	let selectedPrecision = $state<'fp32' | 'fp16' | 'int8'>('int8');
 	let downloadedModels = $state<string[]>([]);
-	let confidenceThreshold = $state<number>(0.15);
+	let confidenceThreshold = $state<number>(0.25);
 
 	// FPS: default depends on flow type (12 = video analytics, 24 = livestream)
 	const defaultFps = $derived(videoStore.videoType === 'file' ? 12 : 24);
