@@ -173,8 +173,8 @@
 							<span class="sr-only">Info</span>
 						</Tooltip.Trigger>
 						<Tooltip.Content side="left">
-							<p>Smaller = faster</p>
-							<p>larger = more accurate</p>
+							<p>Smaller models run faster but are less accurate</p>
+							<p>Larger models are more accurate but slower</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</div>
@@ -326,8 +326,8 @@
 							<span class="sr-only">Info</span>
 						</Tooltip.Trigger>
 						<Tooltip.Content side="left">
-							<p>Higher = smoother but heavier.</p>
-							<p>Lower = lighter but choppy.</p>
+							<p>Higher FPS provides real-time detection but uses more resources</p>
+							<p>Lower FPS reduces load but detects less frequently</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</div>
@@ -371,8 +371,8 @@
 							<span class="sr-only">Info</span>
 						</Tooltip.Trigger>
 						<Tooltip.Content side="left">
-							<p>Higher = fewer, more confident detections.</p>
-							<p>Lower = more detections, more noise.</p>
+							<p>Higher threshold shows only confident detections, reducing false alarms</p>
+							<p>Lower threshold shows more detections but may include false positives</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</div>
@@ -418,8 +418,8 @@
 							<span class="sr-only">Info</span>
 						</Tooltip.Trigger>
 						<Tooltip.Content side="left">
-							<p>Zone = detect in specific areas.</p>
-							<p>Full frame = detect everywhere.</p>
+							<p>Zone-based: Define specific areas for detection with custom rules</p>
+							<p>Full frame: Detect objects across the entire video</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</div>
