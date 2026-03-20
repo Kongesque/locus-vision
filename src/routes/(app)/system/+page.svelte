@@ -129,6 +129,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>System · Locus</title>
+</svelte:head>
+
 <div class="relative flex flex-1 flex-col gap-4 p-4">
 	<!-- Header -->
 	<div class="flex items-center justify-between">

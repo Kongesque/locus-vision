@@ -256,6 +256,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Create · Locus</title>
+</svelte:head>
+
 <div class="flex h-[calc(100vh-4rem)] flex-1 flex-col gap-4 p-4">
 	<!-- Main Content -->
 	<div class="flex min-h-0 flex-1 gap-4">
