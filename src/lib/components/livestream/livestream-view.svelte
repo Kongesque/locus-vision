@@ -8,7 +8,7 @@
 	interface Camera {
 		id: string;
 		name: string;
-		status: string;
+		status: 'active' | 'draft' | 'offline' | 'connecting';
 		thumbnail?: string;
 	}
 
@@ -25,7 +25,9 @@
 		try {
 			const res = await fetch('http://localhost:8000/api/cameras');
 			if (res.ok) {
-				cameras = await res.json();
+				const allCameras = await res.json();
+				// Only show cameras with 'active' status (configured and ready to use)
+				cameras = allCameras.filter((cam: Camera) => cam.status === 'active');
 			}
 		} catch {
 			// silent — backend might be down

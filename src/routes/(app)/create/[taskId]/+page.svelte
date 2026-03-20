@@ -238,7 +238,8 @@
 						classes: JSON.stringify(consolidatedClasses),
 						model_name: resolvedModelName,
 						fps: fps,
-						confidence_threshold: confidenceThreshold
+						confidence_threshold: confidenceThreshold,
+						status: 'active'
 					})
 				});
 

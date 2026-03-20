@@ -184,8 +184,8 @@ async def create_camera(camera: CameraCreate):
     db = await get_db()
     try:
         await db.execute(
-            """INSERT INTO cameras (id, name, type, url, device_id, model_name, fps, zones, classes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO cameras (id, name, type, url, device_id, model_name, fps, zones, classes, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 camera_id,
                 camera.name,
@@ -196,6 +196,7 @@ async def create_camera(camera: CameraCreate):
                 camera.fps,
                 camera.zones,
                 camera.classes,
+                'draft',
             ),
         )
         await db.commit()
