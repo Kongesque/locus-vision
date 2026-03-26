@@ -91,5 +91,5 @@ Contributions welcome — bug reports, feature requests, and pull requests all h
 ---
 
 <p align="center">
-  If Locus Vision is useful to you, consider giving it a <a href="https://github.com/kongesque/locus-vision">star</a> — it helps others discover the project.
+  Made with ❤️ by <a href="https://github.com/kongesque">kongesque</a>
 </p>
