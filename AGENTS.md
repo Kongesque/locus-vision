@@ -157,14 +157,23 @@ pnpm check:watch
 ### Testing
 
 ```bash
-# Frontend unit tests (Vitest)
+# Frontend unit tests (Vitest, single run)
 pnpm test
 
 # Frontend tests in watch mode
 pnpm test:unit
 
-# Backend tests (pytest)
+# Run a single frontend test file
+pnpm test -- src/path/to/file.test.ts
+
+# Backend tests (pytest) — requires venv: source backend/.venv/bin/activate
 cd backend && pytest
+
+# Run a single backend test file
+cd backend && pytest tests/test_analytics_engine.py
+
+# Run a single backend test function
+cd backend && pytest tests/test_analytics_engine.py::test_function -v
 ```
 
 ### Benchmarking
@@ -176,7 +185,28 @@ pnpm benchmark
 
 ---
 
+## Frontend-Backend Communication
+
+There is **no Vite proxy** — the frontend calls the backend directly at `http://localhost:8000`. Both servers run independently on different ports (5173 for frontend, 8000 for backend). CORS is configured in `backend/config.py` for these origins.
+
+API calls use native `fetch` (no axios or wrapper library). Server-side calls in `hooks.server.ts` and `+page.ts` load functions hit the backend directly. Client-side calls in components use the same pattern.
+
+Interactive API docs are available at `http://localhost:8000/docs`.
+
+---
+
 ## Code Style Guidelines
+
+### Formatting (Prettier)
+
+- **Tabs** for indentation
+- **Single quotes**
+- **No trailing commas**
+- **100 character** print width
+- Svelte files use the `svelte` parser
+- Tailwind class sorting is automatic via `prettier-plugin-tailwindcss`
+
+ESLint uses flat config format (ESLint 9). `no-undef` is off (TypeScript handles it).
 
 ### Frontend (SvelteKit + TypeScript)
 
@@ -189,7 +219,7 @@ Use Svelte 5 runes syntax. **Avoid legacy `$:` reactive statements.**
   // ✅ Correct - Svelte 5 runes
   let count = $state(0);
   let doubled = $derived(count * 2);
-  
+
   function increment() {
     count++;
   }
@@ -206,7 +236,7 @@ Use Svelte 5 runes syntax. **Avoid legacy `$:` reactive statements.**
 ```svelte
 <script>
   import { cn } from '$lib/utils';
-  
+
   let { class: className, variant = 'default' } = $props();
 </script>
 
@@ -231,6 +261,7 @@ import { cn } from '$lib/utils';
 - Use explicit types for function parameters and return values
 - Define interfaces for component props
 - Use `$props()` rune for component props in Svelte 5
+- User type defined in `src/app.d.ts`: `{ id: number; email: string; name: string; role: 'admin' | 'viewer' } | null`
 
 ```svelte
 <script lang="ts">
@@ -238,7 +269,7 @@ import { cn } from '$lib/utils';
     title: string;
     count?: number;
   }
-  
+
   let { title, count = 0 }: Props = $props();
 </script>
 ```
@@ -261,7 +292,7 @@ async def get_user(db: aiosqlite.Connection, user_id: int) -> User | None:
 
 #### Environment Variables
 
-All environment variables use `LOCUS_` prefix and are defined in `backend/config.py`:
+All environment variables use `LOCUS_` prefix and are defined in `backend/config.py` (reads `.env` from `backend/`):
 
 ```python
 from config import settings
@@ -273,7 +304,7 @@ db_path = settings.database_path
 
 #### Router Organization
 
-Keep routers focused on a single domain:
+All routers use `APIRouter(prefix="/api/...", tags=[...])` and are mounted in `main.py`:
 
 ```python
 # routers/cameras.py
@@ -288,37 +319,19 @@ async def list_cameras():
 
 ---
 
-## Testing Instructions
+## Testing Details
 
 ### Frontend Testing
 
 - Tests are located alongside components or in `src/**/*.test.ts`
-- Uses Vitest with jsdom environment
+- Uses Vitest with `node` environment (configured in `vite.config.ts`)
 - Test files: `*.test.ts` or `*.spec.ts`
-
-```bash
-# Run all frontend tests
-pnpm test
-
-# Run in watch mode
-pnpm test:unit
-```
 
 ### Backend Testing
 
 - Tests are in `backend/tests/`
-- Uses pytest
-
-```bash
-cd backend
-pytest
-
-# Run specific test
-pytest tests/test_analytics_engine.py
-
-# Run with verbose output
-pytest -v
-```
+- Uses pytest with `unittest.mock` (patch, MagicMock) for mocking
+- Requires venv activation: `source backend/.venv/bin/activate`
 
 ---
 
@@ -327,17 +340,19 @@ pytest -v
 ### Frontend (hooks.server.ts)
 
 1. All routes except `/login`, `/signup`, `/get-started`, `/logout` require authentication
-2. JWT access token stored in HttpOnly cookie
-3. Server hook validates tokens against FastAPI backend (`/api/auth/me`)
-4. Auto-refreshes expired access tokens using refresh token
-5. User data attached to `event.locals.user` and available in all route loaders
+2. JWT access token stored in HttpOnly cookie (`maxAge: 15 minutes`)
+3. Refresh token stored in HttpOnly cookie (`maxAge: 7 days`)
+4. Server hook validates tokens against FastAPI backend (`/api/auth/me`)
+5. Auto-refreshes expired access tokens using refresh token
+6. User data attached to `event.locals.user` and available in all route loaders
 
 ### Backend (routers/auth.py)
 
 1. Login endpoint validates credentials and returns access/refresh tokens
 2. Access tokens expire after 15 minutes
 3. Refresh tokens expire after 7 days
-4. Tokens stored in HttpOnly cookies (secure flag should be enabled in production)
+4. Tokens stored in HttpOnly cookies (`secure: false` in dev, should be `true` in production)
+5. Rate limiting: 5 attempts per 5-minute window per IP (in-memory tracking)
 
 ---
 
@@ -348,9 +363,14 @@ pytest -v
 - `(app)/` — Authenticated routes with sidebar layout
 - `(auth)/` — Public routes (login, signup) without sidebar
 
+### Database
+
+- SQLite uses WAL mode and foreign keys (`PRAGMA journal_mode=WAL`, `PRAGMA foreign_keys=ON`)
+- Database file location: `backend/data/locusvision.db`
+
 ### Database Migrations
 
-The project uses inline migrations in `backend/database.py`. When adding new columns:
+The project uses inline migrations in `backend/database.py` `init_db()` (no Alembic). When adding new columns:
 
 1. Add column to CREATE TABLE statement
 2. Add migration in the migrations dict for existing databases
@@ -361,7 +381,8 @@ ONNX models are stored in `data/models/` and discovered dynamically:
 
 - Models are validated on startup by `model_manager.py`
 - Users can select models via the Camera Settings UI
-- Use `export_model.py` script to generate INT8 quantized models
+- Export quantized models: `python backend/scripts/export_model.py yolo11n --int8`
+- Argon2id parameters are tuned for Raspberry Pi 5 constrained memory
 
 ---
 
@@ -388,7 +409,7 @@ ONNX models are stored in `data/models/` and discovered dynamically:
 
 - JWT tokens with short expiration (15 minutes for access)
 - Refresh tokens with longer expiration (7 days)
-- Argon2id for password hashing (OWASP 2025 minimum)
+- Argon2id for password hashing (OWASP 2025 minimum, tuned for Pi 5)
 - Rate limiting on login attempts (5 attempts, 5-minute lockout)
 
 ### Environment Variables
@@ -418,7 +439,7 @@ LOCUS_DATABASE_PATH=./data/locusvision.db
 
 1. Add route handler in appropriate `backend/routers/*.py` file
 2. Add Pydantic models in `backend/models.py` if needed
-3. Test with FastAPI docs at `http://localhost:8000/api/docs`
+3. Test with FastAPI docs at `http://localhost:8000/docs`
 
 ### Adding a New Frontend Page
 

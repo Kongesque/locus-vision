@@ -12,9 +12,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm preview` - Preview production build
 
 ### Testing
-- `pnpm test` - Run all unit tests (Vitest with --run)
+- `pnpm test` - Run all frontend unit tests (Vitest with --run)
 - `pnpm test:unit` - Run Vitest in watch mode
-- `cd backend && pytest` - Run backend tests
+- `pnpm test -- src/path/to/file.test.ts` - Run a single frontend test file
+- `cd backend && pytest` - Run all backend tests
+- `cd backend && pytest tests/test_specific.py` - Run a single backend test file
+- `cd backend && pytest tests/test_specific.py::test_function -v` - Run a single backend test
+
+Note: Backend commands require the venv to be active: `source backend/.venv/bin/activate`
 
 ### Code Quality
 - `pnpm lint` - ESLint + Prettier check
@@ -22,10 +27,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm check` - Type-check Svelte files with svelte-check
 - `pnpm check:watch` - Type-check in watch mode
 
-### Other
-- `pnpm benchmark` - Run build size & performance benchmark
+## Code Style
+
+Prettier enforces: **tabs** for indentation, **single quotes**, **no trailing commas**, **100 char printWidth**. Svelte files use the `svelte` parser. Tailwind class sorting is automatic via `prettier-plugin-tailwindcss`.
+
+ESLint uses flat config format (ESLint 9). `no-undef` is off (TypeScript handles it).
 
 ## High-Level Architecture
+
+LocusVision is a self-hosted video analytics platform targeting **Raspberry Pi 5 (8GB)**. All processing is local — no cloud dependencies.
+
+### Frontend-Backend Communication
+
+There is **no Vite proxy** — the frontend calls the backend directly at `http://localhost:8000`. Both servers run independently on different ports (5173 for frontend, 8000 for backend). CORS is configured in `backend/config.py` for these origins.
+
+API calls from the frontend use native `fetch` (no axios or wrapper library). Server-side calls in `hooks.server.ts` and `+page.ts` load functions hit the backend directly. Client-side calls in components use the same pattern.
+
+Interactive API docs are at `http://localhost:8000/docs`.
 
 ### Frontend (SvelteKit 5 + TypeScript)
 
@@ -34,6 +52,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - All routes except `/login`, `/signup`, `/get-started`, `/logout` require authentication
 - The hook validates tokens against the FastAPI backend (`/api/auth/me`) and auto-refreshes expired access tokens
 - User data is attached to `event.locals.user` and available in all route loaders
+- User type defined in `src/app.d.ts`: `{ id: number; email: string; name: string; role: 'admin' | 'viewer' } | null`
 
 **Route Structure**
 - `src/routes/(app)/` - Authenticated application routes (livestream, video-analytics, analytics, settings, system)
@@ -42,20 +61,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Component Architecture**
 - UI components use shadcn-svelte (installed in `src/lib/components/ui/`) with bits-ui primitives
+- Add new shadcn components with: `npx shadcn-svelte@latest add <component>`
 - Custom components are organized by feature: `livestream/`, `video-analytics/`, `create/`
-- Svelte 5 runes (`$state`, `$derived`) are used throughout - avoid legacy `$:` reactive statements
+- Svelte 5 runes (`$state`, `$derived`, `$props`) are used throughout — avoid legacy `$:` reactive statements
 - Styling uses Tailwind CSS 4 with CSS variables for theming (defined in `src/routes/layout.css`)
 - Component aliases: `$lib/components`, `$lib/components/ui`, `$lib/hooks`
 
 **State Management**
-- Svelte 5 runes-based stores in `src/lib/stores/` (e.g., `video.svelte.ts`)
+- Svelte 5 runes-based stores in `src/lib/stores/` (e.g., `video.svelte.ts`) using factory functions with `$state` runes
 - Prefer local component state with props over global stores when possible
 
 ### Backend (FastAPI + Python)
 
 **Application Structure**
 - `main.py` - FastAPI app factory with lifespan management (starts/stops background workers)
-- `config.py` - Pydantic-settings configuration (env vars prefixed with `LOCUS_`)
+- `config.py` - Pydantic-settings configuration (env vars prefixed with `LOCUS_`, reads `.env` from `backend/`)
 - `database.py` - Async SQLite (aiosqlite) database initialization and connection management
 - `auth.py` - JWT token utilities and Argon2id password hashing
 - `models.py` - Pydantic request/response models
@@ -70,6 +90,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `routers/system.py` - Storage management and system health
 - `routers/settings.py` - User settings and admin configuration
 - `routers/models.py` - ML model discovery and management
+
+All routers use `APIRouter(prefix="/api/...", tags=[...])` and are mounted in `main.py`.
 
 **Background Services**
 All services are singletons started/stopped in `main.py` lifespan:
@@ -88,15 +110,19 @@ All services are singletons started/stopped in `main.py` lifespan:
 - SQLite (aiosqlite) for primary data: users, cameras, video tasks, events, sessions, metrics
 - DuckDB for analytics: queries against event data with Parquet export capability
 - Database file location: `backend/data/locusvision.db`
+- SQLite uses WAL mode and foreign keys (`PRAGMA journal_mode=WAL`, `PRAGMA foreign_keys=ON`)
+- Migrations are inline in `database.py` `init_db()` — new columns go in both the CREATE TABLE statement and the migrations dict for existing databases (no Alembic)
 
 **AI/Vision Pipeline**
 1. **Detection**: ONNX Runtime with YOLO models (supports FP16/INT8 quantization)
 2. **Tracking**: ByteTrack (via supervision library) per-camera instances prevent ID collision
 3. **Analytics**: Zone-based counting with polygon containment, directional line crossing (A→B, B→A, both)
 4. **Events**: Zone entries/exits, line crossings, track lifecycle events written to DuckDB for analytics
+5. **Model Export**: `python backend/scripts/export_model.py yolo11n --int8` to generate quantized models into `data/models/`
 
 **Key Conventions**
 - All database operations are async (aiosqlite)
 - FastAPI dependency injection for common patterns (get_current_user, get_db)
 - Background workers use threading (job queue) or multiprocessing (livestream inference)
 - Environment variables use `LOCUS_` prefix (see `config.py`)
+- Argon2id parameters are tuned for Raspberry Pi 5 constrained memory
