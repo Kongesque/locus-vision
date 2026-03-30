@@ -179,6 +179,8 @@
 	let eventTypeConfig = $derived.by(() => {
 		const config: Record<string, { label: string; color: string; bgColor: string }> = {
 			zone: { label: 'Zone Entry', color: 'text-purple-400', bgColor: 'bg-purple-500/15' },
+			zone_exit: { label: 'Zone Exit', color: 'text-indigo-400', bgColor: 'bg-indigo-500/15' },
+			line_cross: { label: 'Line Cross', color: 'text-cyan-400', bgColor: 'bg-cyan-500/15' },
 			alert: { label: 'Alert', color: 'text-red-400', bgColor: 'bg-red-500/15' },
 			capacity_warning: {
 				label: 'Capacity Warning',

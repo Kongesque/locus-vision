@@ -305,7 +305,34 @@ class StreamContext:
             # Analytics alerts — always emit immediately (high priority)
             for alert in result.alerts:
                 ws_events.append(alert)
-                
+
+            # Zone exit events — surface dwell time (spatial analytics)
+            box_labels = {box["id"]: box["label"] for box in result.boxes}
+            for ze in result.zone_events:
+                if ze["event_type"] == "exit" and ze["dwell_time"] >= 1.0:
+                    label = box_labels.get(ze["track_id"], "Object")
+                    dwell = ze["dwell_time"]
+                    dwell_str = f"{dwell:.0f}s" if dwell < 60 else f"{dwell / 60:.1f}m"
+                    ws_events.append({
+                        "type": "zone_exit",
+                        "message": f"{label} left {ze['zone_id']} · {dwell_str} dwell",
+                        "zone": ze["zone_id"],
+                        "timestamp": ze["timestamp"],
+                    })
+
+            # Line crossing events — surface direction
+            for le in result.line_events:
+                label = box_labels.get(le["track_id"], "Object")
+                direction = le["direction"]
+                dir_label = "→ in" if direction == "in" else "← out" if direction == "out" else "crossing"
+                ws_events.append({
+                    "type": "line_cross",
+                    "message": f"{label} crossed {le['line_id']} · {dir_label}",
+                    "zone": le["line_id"],
+                    "timestamp": le["timestamp"],
+                    "direction": direction,
+                })
+
             # Zone counts update
             if result.zone_counts:
                 ws_events.append({

@@ -11,7 +11,9 @@
 		Play,
 		X,
 		ArrowDown,
-		Download
+		Download,
+		LogOut,
+		ArrowLeftRight
 	} from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 
@@ -426,6 +428,10 @@
 										<Activity class="size-3 {config.color}" />
 									{:else if log.type === 'zone'}
 										<Shield class="size-3 {config.color}" />
+									{:else if log.type === 'zone_exit'}
+										<LogOut class="size-3 {config.color}" />
+									{:else if log.type === 'line_cross'}
+										<ArrowLeftRight class="size-3 {config.color}" />
 									{:else if log.type === 'alert' || log.type === 'capacity_warning' || log.type === 'wrong_way'}
 										<AlertTriangle class="size-3 {config.color}" />
 									{:else}
