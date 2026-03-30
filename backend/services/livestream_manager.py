@@ -81,6 +81,7 @@ class StreamContext:
 
         # Server-side event ring buffer (NVR-style — recent events survive page refreshes)
         self.recent_events = collections.deque(maxlen=200)
+        self._event_write_buffer = []
 
         # Telemetry Buffers for DuckDB
         self.zone_events_buffer = []
@@ -93,6 +94,7 @@ class StreamContext:
         self._track_last_event = {}          # track_id -> last SSE emit time
         self._track_zones = {}               # track_id -> last known zone
         self._sse_cooldown = 5.0             # seconds between dwell updates per track
+        self._preload_recent_events()
 
     def start(self):
         self._running = True
@@ -119,6 +121,44 @@ class StreamContext:
             self.zone_events_buffer.clear()
             self.line_events_buffer.clear()
             self.track_events_buffer.clear()
+        self._flush_sqlite_events()
+
+    def _flush_sqlite_events(self):
+        if not self._event_write_buffer:
+            return
+        events = self._event_write_buffer[:]
+        self._event_write_buffer.clear()
+        try:
+            import sqlite3
+            from config import settings
+            conn = sqlite3.connect(settings.database_path)
+            conn.executemany(
+                "INSERT INTO livestream_events (camera_id, type, message, zone, timestamp) VALUES (?,?,?,?,?)",
+                [(self.camera_id, e["type"], e["message"], e.get("zone"), e["timestamp"]) for e in events]
+            )
+            conn.commit()
+            conn.close()
+        except Exception as ex:
+            print(f"[Livestream] SQLite event flush failed: {ex}")
+
+    def _preload_recent_events(self):
+        try:
+            import sqlite3
+            from config import settings
+            conn = sqlite3.connect(settings.database_path)
+            rows = conn.execute(
+                "SELECT type, message, zone, timestamp FROM livestream_events "
+                "WHERE camera_id = ? ORDER BY timestamp DESC LIMIT 200",
+                (self.camera_id,)
+            ).fetchall()
+            conn.close()
+            for row in reversed(rows):
+                self.recent_events.append({
+                    "type": row[0], "message": row[1],
+                    "zone": row[2], "timestamp": row[3]
+                })
+        except Exception as ex:
+            print(f"[Livestream] Event preload failed: {ex}")
 
     def _capture_loop(self):
         # Use hardware-accelerated video capture
@@ -288,6 +328,7 @@ class StreamContext:
                 # Buffer event server-side for replay on page refresh (NVR-style)
                 if ev.get("type") != "zone_update":
                     self.recent_events.append(ev)
+                    self._event_write_buffer.append(ev)
                 for q in self.event_clients:
                     try: q.put_nowait(json.dumps(ev))
                     except asyncio.QueueFull: pass

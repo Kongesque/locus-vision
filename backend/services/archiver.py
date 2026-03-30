@@ -81,7 +81,19 @@ class Archiver:
                 TO '{track_export_path}' (FORMAT PARQUET)
             """)
             db_client.conn.execute(f"DELETE FROM object_tracks WHERE timestamp < '{cutoff_str}'")
-            
+
+            # Prune old livestream events from SQLite
+            try:
+                import sqlite3, time
+                from config import settings
+                cutoff_ts = time.time() - (self.retention_days * 86400)
+                conn = sqlite3.connect(settings.database_path)
+                conn.execute("DELETE FROM livestream_events WHERE timestamp < ?", (cutoff_ts,))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                logger.error(f"Failed to prune livestream_events: {e}")
+
             logger.info("Archival complete.")
         except Exception as e:
             logger.error(f"Error during archival: {e}")

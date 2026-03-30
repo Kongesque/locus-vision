@@ -88,6 +88,19 @@ async def init_db():
                 updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS livestream_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                camera_id  TEXT    NOT NULL,
+                type       TEXT    NOT NULL,
+                message    TEXT    NOT NULL,
+                zone       TEXT    NULL,
+                timestamp  REAL    NOT NULL,
+                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_livestream_events_camera
+                ON livestream_events(camera_id, timestamp DESC);
+
         """)
         await db.commit()
 
