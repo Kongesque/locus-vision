@@ -10,7 +10,8 @@
 		Pause,
 		Play,
 		X,
-		ArrowDown
+		ArrowDown,
+		Download
 	} from '@lucide/svelte';
 
 	// ─── Types ───
@@ -110,6 +111,7 @@
 			alertTimeout = setTimeout(() => {
 				hasActiveAlert = false;
 			}, 4000);
+			notifyIfHidden(message);
 		}
 
 		if (isFeedPaused) {
@@ -185,6 +187,37 @@
 			hasNewEvents = false;
 		}
 	}
+
+	// ─── Export ───
+	function exportEvents() {
+		const rows = filteredLogs
+			.map((e) => `${e.time},${e.type},${JSON.stringify(e.message)},${e.zone ?? ''}`)
+			.join('\n');
+		const blob = new Blob([`time,type,message,zone\n${rows}`], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `events-${new Date().toISOString().slice(0, 19)}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	// ─── Browser notifications ───
+	$effect(() => {
+		if (isConnected && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+			Notification.requestPermission();
+		}
+	});
+
+	function notifyIfHidden(message: string) {
+		if (
+			typeof Notification === 'undefined' ||
+			Notification.permission !== 'granted' ||
+			document.visibilityState !== 'hidden'
+		)
+			return;
+		new Notification('LocusVision Alert', { body: message, icon: '/favicon.png' });
+	}
 </script>
 
 <div class="hidden min-h-0 w-80 shrink-0 flex-col lg:flex xl:w-96">
@@ -223,6 +256,14 @@
 						{:else}
 							<Pause class="size-3" />
 						{/if}
+					</button>
+					<button
+						onclick={exportEvents}
+						disabled={filteredLogs.length === 0}
+						class="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+						title="Export events as CSV"
+					>
+						<Download class="size-3" />
 					</button>
 					<button
 						onclick={clearActivityLogs}
