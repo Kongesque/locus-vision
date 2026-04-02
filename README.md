@@ -54,6 +54,18 @@ https://github.com/user-attachments/assets/647da3b4-74e2-4da8-872c-6d9200b7c0af
 
 ## Quick Start
 
+### Docker (recommended)
+
+```sh
+git clone https://github.com/kongesque/locus-vision.git
+cd locusvision
+docker compose up --build
+```
+
+Open [localhost:3000](http://localhost:3000) (app) or [localhost:8000/api/docs](http://localhost:8000/api/docs) (API docs). 
+
+### Manual
+
 ```sh
 # Clone & install
 git clone https://github.com/kongesque/locus-vision.git
@@ -67,7 +79,7 @@ pip install -r requirements.txt && cd ..
 pnpm dev
 ```
 
-Open [localhost:5173](http://localhost:5173) (app) or [localhost:8000/docs](http://localhost:8000/docs) (API docs).
+Open [localhost:5173](http://localhost:5173) (app) or [localhost:8000/api/docs](http://localhost:8000/api/docs) (API docs).
 
 **Optional** — generate an INT8 quantized model for edge deployment:
 
