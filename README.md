@@ -88,6 +88,31 @@ source backend/.venv/bin/activate
 python backend/scripts/export_model.py yolo11n --int8
 ```
 
+## Performance
+
+All numbers are **inference-only** (ONNX Runtime, 640×640 input, 200 iterations after warmup). End-to-end stream FPS is lower due to video decode, tracking, and analytics overhead.
+
+### High-compute reference — Apple M5 (16 GB)
+
+| Model | Size | FPS | Latency (median) | Latency (p99) |
+|-------|------|-----|------------------|---------------|
+| YOLO11n | 10 MB | **200** | 5.0 ms | 6.6 ms |
+| YOLO11s | 36 MB | **118** | 8.5 ms | 9.9 ms |
+| YOLO11m | 77 MB | **62** | 16.1 ms | 19.4 ms |
+
+> FP32, CoreML (Apple Neural Engine), ONNX Runtime 1.24.2. 15s timed run after 3s warmup, 2s cooldown between models. FPS derived from median latency. Quantized model (INT8/FP16) comparison coming with the Raspberry Pi 5 results below.
+
+### Edge reference — Raspberry Pi 5 (8 GB)
+
+> Coming soon. Run `python backend/scripts/benchmark_inference.py --markdown` on your device to generate your own numbers.
+
+To reproduce:
+
+```sh
+cd backend && source .venv/bin/activate
+python scripts/benchmark_inference.py
+```
+
 ## Contributing
 
 Contributions welcome — bug reports, feature requests, and pull requests all help. See [open issues](https://github.com/kongesque/locus-vision/issues) for where to start.
