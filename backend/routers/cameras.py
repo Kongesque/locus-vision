@@ -7,7 +7,7 @@ import cv2
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import List
-from database import get_db
+from database import get_db, get_app_setting
 from models import CameraCreate, CameraUpdate, CameraResponse
 from services.discovery_service import discovery_service
 from services.livestream_manager import livestream_manager
@@ -181,6 +181,7 @@ async def get_camera(camera_id: str):
 async def create_camera(camera: CameraCreate):
     """Create a new camera."""
     camera_id = camera.id or str(uuid.uuid4())
+    model_name = camera.model_name or await get_app_setting("default_model", "yolo11n")
     db = await get_db()
     try:
         await db.execute(
@@ -192,7 +193,7 @@ async def create_camera(camera: CameraCreate):
                 camera.type,
                 camera.url,
                 camera.device_id,
-                camera.model_name,
+                model_name,
                 camera.fps,
                 camera.zones,
                 camera.classes,

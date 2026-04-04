@@ -165,7 +165,7 @@ class CameraCreate(BaseModel):
     type: str = "rtsp"
     url: str | None = None
     device_id: str | None = None
-    model_name: str = "yolo11n"
+    model_name: str | None = None
     fps: int = 24
     confidence_threshold: float = 0.25
     zones: str | None = None
