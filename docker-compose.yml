@@ -2,8 +2,8 @@ services:
   locusvision:
     build: .
     ports:
-      - "100.85.218.4:8000:8000" # Backend API (Tailscale only)
-      - "100.85.218.4:3000:3000" # Frontend (Tailscale only)
+      - "8000:8000" # Backend API
+      - "3000:3000" # Frontend
     volumes:
       - locusvision-data:/app/backend/data
       - /dev:/dev     # Auto-detect USB webcams + RTSP works out of the box
@@ -11,9 +11,9 @@ services:
       - "c 81:* rmw"  # Allow video4linux devices
     group_add:
       - video
+    env_file:
+      - .env
     environment:
-      - LOCUS_JWT_SECRET=3ead5f042d379d04ab343f9823342113a632d2461098c4f9d20e5423fb119ff8
-      - LOCUS_CORS_ORIGINS=["http://100.85.218.4:3000","http://100.85.218.4:8000"]
       - PORT=3000
     restart: unless-stopped
 
