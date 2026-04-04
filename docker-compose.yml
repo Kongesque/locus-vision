@@ -12,9 +12,9 @@ services:
     group_add:
       - video
     environment:
-      - LOCUS_JWT_SECRET=change-me-use-openssl-rand-hex-32
-      - LOCUS_CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
-      - ORIGIN=http://localhost:3000
+      # JWT secret is auto-generated on first run and persisted to the data volume.
+      # Override here only if you need a stable secret (e.g. multi-replica setups).
+      # - LOCUS_JWT_SECRET=your-secret-here
       - PORT=3000
     restart: unless-stopped
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { API_URL } from '$lib/api';
 	import { Loader2, Clock, Layers } from '@lucide/svelte';
 
 	interface QueueTask {
@@ -19,7 +20,7 @@
 
 	async function fetchStatus() {
 		try {
-			const res = await fetch('http://127.0.0.1:8000/api/video/queue/status');
+			const res = await fetch(`${API_URL}/api/video/queue/status`);
 			if (res.ok) {
 				status = await res.json();
 			}

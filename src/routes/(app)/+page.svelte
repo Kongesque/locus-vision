@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { API_URL } from '$lib/api';
 	import {
 		Cpu,
 		MemoryStick,
@@ -95,9 +96,9 @@
 	async function fetchAll() {
 		try {
 			const [sysRes, histRes, queueRes] = await Promise.allSettled([
-				fetch('http://localhost:8000/api/system/stats'),
-				fetch('http://127.0.0.1:8000/api/video/history'),
-				fetch('http://127.0.0.1:8000/api/video/queue/status')
+				fetch(`${API_URL}/api/system/stats`),
+				fetch(`${API_URL}/api/video/history`),
+				fetch(`${API_URL}/api/video/queue/status`)
 			]);
 
 			if (sysRes.status === 'fulfilled' && sysRes.value.ok) {

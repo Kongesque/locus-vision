@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { API_URL } from '$lib/api';
 	import {
 		Activity,
 		Download,
@@ -78,7 +79,7 @@
 
 			// 1. Fetch Aggregated Data
 			const resExport = await fetch(
-				`http://127.0.0.1:8000/api/analytics/export?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}&format=json`
+				`${API_URL}/api/analytics/export?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}&format=json`
 			);
 			if (resExport.ok) {
 				const json = await resExport.json();
@@ -87,7 +88,7 @@
 
 			// 2. Fetch Heatmap Data
 			const resHeatmap = await fetch(
-				`http://127.0.0.1:8000/api/analytics/heatmap?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}`
+				`${API_URL}/api/analytics/heatmap?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}`
 			);
 			if (resHeatmap.ok) {
 				const json = await resHeatmap.json();
@@ -97,7 +98,7 @@
 
 			// 3. Fetch Peak Hours Data
 			const resPeak = await fetch(
-				`http://127.0.0.1:8000/api/analytics/peak-hours?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}`
+				`${API_URL}/api/analytics/peak-hours?camera_id=${selectedCamera}&start_time=${startIso}&end_time=${endIso}`
 			);
 			if (resPeak.ok) {
 				peakHoursData = await resPeak.json();
@@ -167,7 +168,7 @@
 		else if (timeRange === '7d') start.setDate(start.getDate() - 7);
 		else if (timeRange === '30d') start.setDate(start.getDate() - 30);
 
-		const url = `http://127.0.0.1:8000/api/analytics/export?camera_id=${selectedCamera}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&format=${format}`;
+		const url = `${API_URL}/api/analytics/export?camera_id=${selectedCamera}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&format=${format}`;
 		window.open(url, '_blank');
 	}
 </script>

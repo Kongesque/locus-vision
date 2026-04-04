@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { API_URL } from '$lib/api';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -39,7 +40,7 @@
 	async function runDiscovery() {
 		try {
 			isDiscovering = true;
-			const response = await fetch('http://localhost:8000/api/cameras/discover');
+			const response = await fetch(`${API_URL}/api/cameras/discover`);
 			if (!response.ok) throw new Error('Discovery failed');
 			discoveredCameras = await response.json();
 		} catch (err) {
@@ -55,7 +56,7 @@
 		if (!cam) return;
 
 		// Point directly at the MJPEG preview stream (browser renders it natively)
-		previewUrl = `http://localhost:8000/api/cameras/preview?source=${encodeURIComponent(cam.url)}`;
+		previewUrl = `${API_URL}/api/cameras/preview?source=${encodeURIComponent(cam.url)}`;
 	}
 
 	// Manual RTSP/HTTP form fields
@@ -134,7 +135,7 @@
 				};
 			}
 
-			const response = await fetch('http://localhost:8000/api/cameras', {
+			const response = await fetch(`${API_URL}/api/cameras`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(config)

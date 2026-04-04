@@ -47,13 +47,17 @@ async def prometheus_metrics():
     lines.append("# TYPE locusvision_memory_total_bytes gauge")
     lines.append(f"locusvision_memory_total_bytes {stats['system']['memory_total_mb'] * 1024 * 1024}")
     
+    disk = stats.get('storage', {}).get('total', {})
+    disk_used_gb = disk.get('used_gb', 0)
+    disk_total_gb = disk.get('total_gb', 0)
+
     lines.append("# HELP locusvision_disk_usage_percent Current disk usage percentage")
     lines.append("# TYPE locusvision_disk_usage_percent gauge")
-    lines.append(f"locusvision_disk_usage_percent {stats['system']['disk_used_gb'] / stats['system']['disk_total_gb'] * 100 if stats['system']['disk_total_gb'] > 0 else 0}")
-    
+    lines.append(f"locusvision_disk_usage_percent {disk_used_gb / disk_total_gb * 100 if disk_total_gb > 0 else 0}")
+
     lines.append("# HELP locusvision_disk_used_bytes Current disk used in bytes")
     lines.append("# TYPE locusvision_disk_used_bytes gauge")
-    lines.append(f"locusvision_disk_used_bytes {stats['system']['disk_used_gb'] * 1024 * 1024 * 1024}")
+    lines.append(f"locusvision_disk_used_bytes {disk_used_gb * 1024 * 1024 * 1024}")
     
     # ── Camera Metrics ────────────────────────────────────────────
     
@@ -84,7 +88,7 @@ async def prometheus_metrics():
     
     lines.append("# HELP locusvision_detector_inference_ms Average inference latency in milliseconds")
     lines.append("# TYPE locusvision_detector_inference_ms gauge")
-    lines.append(f'locusvision_detector_inference_ms{{model="{detector["model_name"]}"}} {detector["avg_inference_ms"]}')
+    lines.append(f'locusvision_detector_inference_ms{{model="{detector["model_name"]}"}} {detector.get("inference_speed", {}).get("p50", 0)}')
     
     lines.append("# HELP locusvision_detector_inferences_total Total number of inferences performed")
     lines.append("# TYPE locusvision_detector_inferences_total counter")
