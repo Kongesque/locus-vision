@@ -206,7 +206,7 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each data.users ?? [] as user}
+				{#each data.users ?? [] as user (user.id)}
 					<Table.Row>
 						<Table.Cell>
 							<div>
