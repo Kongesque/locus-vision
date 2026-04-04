@@ -47,9 +47,9 @@ Settings > Models:
 - [x] **Phase 2A** — Models tab added to Settings page
 - [x] **Phase 2B** — Model library component (`model-library.svelte`)
 - [x] **Phase 2C** — Settings data loader fetches model registry
-- [ ] **Phase 3A** — Remove hardcoded models from create page
-- [ ] **Phase 3B** — Simplify tools panel to single dropdown
-- [ ] **Phase 3C** — Update form submission to send simple model name
+- [x] **Phase 3A** — Removed hardcoded YOLO11_MODELS, precision state, download handlers from create page
+- [x] **Phase 3B** — Simplified tools panel: single dropdown of installed models, no precision/download UI
+- [x] **Phase 3C** — Form submission sends simple model name (backend resolves)
 - [ ] **Phase 4A** — Backwards-compatible model name handling in `get_detector()`
 - [ ] **Phase 4B** — Default model setting in database
 - [ ] **Phase 4C** — Camera default uses system default

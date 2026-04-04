@@ -29,11 +29,11 @@
 	import { COCO_CLASSES } from '$lib/coco-classes';
 	import { tick } from 'svelte';
 
-	interface ModelInfo {
-		value: string;
+	interface InstalledModel {
+		name: string;
 		label: string;
-		desc: string;
-		size: string;
+		fps_estimate?: number | null;
+		active_format?: string | null;
 	}
 
 	interface Props {
@@ -42,23 +42,16 @@
 		drawingMode: 'polygon' | 'line';
 		fullFrameClasses: string[];
 		selectedModel: string;
-		selectedPrecision: 'fp32' | 'fp16' | 'int8';
-		allModels: ModelInfo[];
-		downloadedModels: string[];
-		isModelMissing: boolean;
-		isDownloadingModel: boolean;
-		modelDownloadStatus: { status: string; error?: string } | null;
+		installedModels: InstalledModel[];
 		onDrawingModeChange: (mode: 'polygon' | 'line') => void;
 		onZoneSelected: (id: string | null) => void;
 		onDeleteZone: (id: string, e: MouseEvent) => void;
 		onProcess: (mode: 'zone-based' | 'full-frame') => void;
-		onDownloadModel: () => void;
 		onZoneRenamed: (id: string, name: string) => void;
 		onZoneClassesChanged: (id: string, classes: string[]) => void;
 		onZoneDirectionChanged: (id: string, direction: 'both' | 'in' | 'out') => void;
 		onFullFrameClassesChanged: (classes: string[]) => void;
 		onModelChange: (model: string) => void;
-		onPrecisionChange: (precision: 'fp32' | 'fp16' | 'int8') => void;
 		fps: number;
 		onFpsChange: (fps: number) => void;
 		confidenceThreshold: number;
@@ -71,23 +64,16 @@
 		drawingMode,
 		fullFrameClasses,
 		selectedModel,
-		selectedPrecision,
-		allModels = [],
-		downloadedModels = [],
-		isModelMissing = false,
-		isDownloadingModel = false,
-		modelDownloadStatus = null,
+		installedModels = [],
 		onDrawingModeChange,
 		onZoneSelected,
 		onDeleteZone,
 		onProcess,
-		onDownloadModel,
 		onZoneRenamed,
 		onZoneClassesChanged,
 		onZoneDirectionChanged,
 		onFullFrameClassesChanged,
 		onModelChange,
-		onPrecisionChange,
 		fps,
 		onFpsChange,
 		confidenceThreshold,
@@ -95,7 +81,7 @@
 	}: Props = $props();
 
 	// Helper: find model info for the currently selected model
-	const selectedModelInfo = $derived(allModels.find((m) => m.value === selectedModel));
+	const selectedModelInfo = $derived(installedModels.find((m) => m.name === selectedModel));
 
 	let editingId = $state<string | null>(null);
 	let tempName = $state('');
@@ -107,6 +93,20 @@
 	let activeTab = $state<'zone-based' | 'full-frame'>('zone-based');
 	let scrollContainer: HTMLDivElement | undefined = $state();
 	let prevZoneCount = $state(0);
+
+	// Format backend names for display
+	function formatBackend(fmt: string | null | undefined): string {
+		if (!fmt) return '';
+		const map: Record<string, string> = {
+			hailo: 'Hailo',
+			onnx_int8: 'INT8',
+			onnx_fp16: 'FP16',
+			onnx_fp32: 'FP32',
+			onnx_cuda: 'CUDA',
+			onnx_coreml: 'CoreML'
+		};
+		return map[fmt] ?? fmt;
+	}
 
 	$effect(() => {
 		if (zones.length > prevZoneCount && scrollContainer) {
@@ -147,14 +147,6 @@
 			return [...currentClasses, className];
 		}
 	}
-
-	// Helper for checking if precision is downloaded for the selected model
-	function isPrecisionDownloaded(p: string) {
-		let checkName = selectedModel;
-		if (p === 'int8') checkName += '_int8';
-		if (p === 'fp16') checkName += '_half';
-		return downloadedModels.includes(checkName);
-	}
 </script>
 
 <Card.Root class="flex flex-col overflow-hidden">
@@ -174,145 +166,57 @@
 						</Tooltip.Trigger>
 						<Tooltip.Content side="left">
 							<p>Smaller models run faster but are less accurate</p>
-							<p>Larger models are more accurate but slower</p>
+							<p>Manage models in Settings → Models</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</div>
 
-				<Select.Root
-					type="single"
-					bind:value={selectedModel}
-					onValueChange={(v) => {
-						if (v) onModelChange(v);
-					}}
-				>
-					<Select.Trigger class="h-auto w-full">
-						<div class="flex items-center gap-2">
-							<span class="font-medium">{selectedModelInfo?.label || selectedModel}</span>
-							<span class="text-xs text-muted-foreground">· {selectedModelInfo?.desc || ''}</span>
+				{#if installedModels.length === 0}
+					<div class="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
+						<div class="text-xs font-medium text-amber-600 dark:text-amber-500">
+							No models installed
 						</div>
-					</Select.Trigger>
-					<Select.Content>
-						{#each allModels as model}
-							<Select.Item value={model.value} label={model.label}>
-								<div class="flex w-full items-center justify-between gap-3">
-									<div class="flex flex-col">
-										<span class="font-medium">{model.label}</span>
-										<span class="text-[11px] text-muted-foreground">{model.desc} · {model.size}</span>
-									</div>
-									{#if !downloadedModels.some((d) => d.startsWith(model.value))}
-										<span
-											class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-											>not downloaded</span
-										>
-									{/if}
-								</div>
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-
-				<!-- Inference Precision -->
-				<div class="mt-2">
-					<span class="mb-1 block text-xs font-medium text-muted-foreground"
-						>Inference Precision</span
-					>
-					<ToggleGroup.Root
-						type="single"
-						value={selectedPrecision}
-						onValueChange={(v) => v && onPrecisionChange(v as 'fp32' | 'fp16' | 'int8')}
-						class="w-full justify-stretch gap-1"
-					>
-						<ToggleGroup.Item value="int8" aria-label="INT8" class="flex-1 gap-1 text-xs">
-							INT8
-							{#if isPrecisionDownloaded('int8')}
-								<span
-									class="rounded-full bg-green-500/20 px-1.5 py-0.5 text-[9px] font-medium text-green-600 dark:text-green-400"
-									>ready</span
-								>
-							{:else}
-								<span
-									class="rounded-full border bg-muted/50 px-1.5 py-0.5 text-[9px] text-muted-foreground"
-									>missing</span
-								>
-							{/if}
-						</ToggleGroup.Item>
-						<ToggleGroup.Item value="fp16" aria-label="FP16" class="flex-1 gap-1 text-xs">
-							FP16
-							{#if isPrecisionDownloaded('fp16')}
-								<span
-									class="rounded-full bg-green-500/20 px-1.5 py-0.5 text-[9px] font-medium text-green-600 dark:text-green-400"
-									>ready</span
-								>
-							{:else}
-								<span
-									class="rounded-full border bg-muted/50 px-1.5 py-0.5 text-[9px] text-muted-foreground"
-									>missing</span
-								>
-							{/if}
-						</ToggleGroup.Item>
-						<ToggleGroup.Item value="fp32" aria-label="FP32" class="flex-1 gap-1 text-xs">
-							FP32
-							{#if isPrecisionDownloaded('fp32')}
-								<span
-									class="rounded-full bg-green-500/20 px-1.5 py-0.5 text-[9px] font-medium text-green-600 dark:text-green-400"
-									>ready</span
-								>
-							{:else}
-								<span
-									class="rounded-full border bg-muted/50 px-1.5 py-0.5 text-[9px] text-muted-foreground"
-									>missing</span
-								>
-							{/if}
-						</ToggleGroup.Item>
-					</ToggleGroup.Root>
-				</div>
-
-				<!-- Download Status UI -->
-				{#if isModelMissing}
-					<div class="mt-2.5 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
-						<div class="flex flex-col gap-2">
-							<div class="text-xs font-medium text-amber-600 dark:text-amber-500">
-								Model not downloaded
-							</div>
-							<div class="text-[11px] text-muted-foreground">
-								This combination needs to be downloaded before processing.
-							</div>
-							{#if isDownloadingModel}
-								<div class="mt-1 flex items-center justify-between">
-									<div class="flex items-center gap-2">
-										<div
-											class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
-										></div>
-										<span class="text-xs font-medium capitalize">
-											{modelDownloadStatus?.status || 'Starting...'}
-										</span>
-									</div>
-								</div>
-							{:else if modelDownloadStatus?.status === 'error'}
-								<div class="mt-1 text-xs text-red-500">
-									Error: {modelDownloadStatus.error}
-								</div>
-								<Button
-									size="sm"
-									variant="outline"
-									class="mt-2 w-full text-xs"
-									onclick={onDownloadModel}
-								>
-									Retry Download
-								</Button>
-							{:else}
-								<Button
-									size="sm"
-									variant="outline"
-									class="mt-1 w-full text-xs"
-									onclick={onDownloadModel}
-								>
-									Auto-Download Now
-								</Button>
-							{/if}
+						<div class="mt-1 text-[11px] text-muted-foreground">
+							Download a model to get started.
 						</div>
+						<a href="/settings" class="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+							Go to Settings → Models
+						</a>
 					</div>
+				{:else}
+					<Select.Root
+						type="single"
+						bind:value={selectedModel}
+						onValueChange={(v) => {
+							if (v) onModelChange(v);
+						}}
+					>
+						<Select.Trigger class="h-auto w-full">
+							<div class="flex items-center gap-2">
+								<span class="font-medium">{selectedModelInfo?.label || selectedModel}</span>
+								{#if selectedModelInfo?.active_format}
+									<span class="text-xs text-muted-foreground">· {formatBackend(selectedModelInfo.active_format)}</span>
+								{/if}
+							</div>
+						</Select.Trigger>
+						<Select.Content>
+							{#each installedModels as model (model.name)}
+								<Select.Item value={model.name} label={model.label}>
+									<div class="flex w-full items-center justify-between gap-3">
+										<div class="flex flex-col">
+											<span class="font-medium">{model.label}</span>
+											<span class="text-[11px] text-muted-foreground">
+												{formatBackend(model.active_format)}
+												{#if model.fps_estimate}
+													 · ~{model.fps_estimate} fps
+												{/if}
+											</span>
+										</div>
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
 				{/if}
 			</div>
 
@@ -729,8 +633,8 @@
 		<Button
 			class="h-10 w-full text-sm"
 			disabled={(activeTab === 'zone-based' && zones.length === 0) ||
-				isModelMissing ||
-				isDownloadingModel}
+				installedModels.length === 0 ||
+				!selectedModel}
 			onclick={() => onProcess(activeTab)}
 		>
 			Process
