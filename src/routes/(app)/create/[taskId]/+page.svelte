@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { API_URL } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import { setVideoContext } from '$lib/stores/video-store.svelte';
 	import * as Card from '$lib/components/ui/card';

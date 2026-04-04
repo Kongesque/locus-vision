@@ -1,7 +1,8 @@
+import { API_URL } from '$lib/api';
 import type { PageLoad } from './$types';
 import type { VideoTask } from '../+page';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = `${API_URL}`;
 
 export const load: PageLoad = async ({ params, fetch }) => {
     const taskId = params.taskId;

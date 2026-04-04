@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DrawingCanvas, { type Point, type Zone } from './drawing-canvas.svelte';
+	import { API_URL } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { API_URL } from '$lib/api';
 	import Hls from 'hls.js';

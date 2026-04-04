@@ -1,5 +1,6 @@
 <script lang="ts">
 	import PageTitle2 from '$lib/components/page-title-2.svelte';
+	import { API_URL } from '$lib/api';
 	import UploadArea from '$lib/components/video-analytics/upload-area.svelte';
 	import SearchInput from '$lib/components/video-analytics/search-input.svelte';
 	import VideoCard from '$lib/components/video-analytics/video-card.svelte';
@@ -28,7 +29,7 @@
 
 	async function refreshHistory() {
 		try {
-			const res = await fetch('http://127.0.0.1:8000/api/video/history');
+			const res = await fetch(`${API_URL}/api/video/history`);
 			if (res.ok) {
 				history = await res.json();
 			}
@@ -59,7 +60,7 @@
 		deleteError = '';
 
 		try {
-			const res = await fetch(`http://127.0.0.1:8000/api/video/${taskToDelete.id}`, {
+			const res = await fetch(`${API_URL}/api/video/${taskToDelete.id}`, {
 				method: 'DELETE'
 			});
 
@@ -103,7 +104,7 @@
 						format={item.format || 'mp4'}
 						status={item.status}
 						progress={item.progress || 0}
-						thumbnail={`http://127.0.0.1:8000/api/video/${item.id}/thumbnail`}
+						thumbnail={`${API_URL}/api/video/${item.id}/thumbnail`}
 						onDelete={() => openDeleteDialog(item)}
 					/>
 				{/each}

@@ -97,8 +97,8 @@
 		try {
 			const [sysRes, histRes, queueRes] = await Promise.allSettled([
 				fetch(`${API_URL}/api/system/stats`),
-				fetch('http://127.0.0.1:8000/api/video/history'),
-				fetch('http://127.0.0.1:8000/api/video/queue/status')
+				fetch(`${API_URL}/api/video/history`),
+				fetch(`${API_URL}/api/video/queue/status`)
 			]);
 
 			if (sysRes.status === 'fulfilled' && sysRes.value.ok) {

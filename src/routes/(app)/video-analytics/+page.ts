@@ -1,7 +1,8 @@
+import { API_URL } from '$lib/api';
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = `${API_URL}`;
 
 export interface VideoTask {
     id: string;
