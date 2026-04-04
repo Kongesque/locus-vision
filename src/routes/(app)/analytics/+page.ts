@@ -7,7 +7,8 @@ export const load: PageLoad = async ({ fetch, url }) => {
     try {
         const res = await fetch(`${API_URL}/api/cameras`);
         if (res.ok) {
-            const cameras = await res.json();
+            const allCameras = await res.json();
+            const cameras = allCameras.filter((cam: any) => cam.status === 'active');
             return { cameras, preselectedCamera };
         }
     } catch (e) {
