@@ -50,7 +50,7 @@
 		>
 			<div class="flex items-center justify-between rounded-lg border p-4">
 				<div class="space-y-0.5">
-					<Label for="allow_signup_toggle" class="text-sm font-medium">
+					<Label for="allow_signup_toggle" class="text-sm font-medium cursor-pointer">
 						Allow Public Signup
 					</Label>
 					<p class="text-sm text-muted-foreground">
@@ -93,7 +93,7 @@
 		>
 			<div class="mt-4 flex items-center justify-between rounded-lg border p-4">
 				<div class="space-y-0.5">
-					<Label for="default_model_select" class="text-sm font-medium">
+					<Label for="default_model_select" class="text-sm font-medium cursor-pointer">
 						Default Model
 					</Label>
 					<p class="text-sm text-muted-foreground">
@@ -109,7 +109,7 @@
 							setTimeout(() => defaultModelForm?.requestSubmit(), 0);
 						}}
 					>
-						<Select.Trigger class="w-[200px]">
+						<Select.Trigger class="w-[200px] cursor-pointer">
 							{data.modelRegistry?.models?.find(
 								(m: { name: string; label: string }) =>
 									m.name === (data.appSettings?.default_model ?? 'yolo11n')
@@ -171,7 +171,7 @@
 					Permanently delete all videos, tasks, and camera stream configurations
 				</p>
 			</div>
-			<Button variant="destructive" size="sm" onclick={() => (deleteAllMediaDialog = true)}>
+			<Button variant="destructive" size="sm" onclick={() => (deleteAllMediaDialog = true)} class="cursor-pointer">
 				Clear Media
 			</Button>
 		</div>
@@ -270,7 +270,7 @@
 								<Button
 									variant="ghost"
 									size="sm"
-									class="text-destructive hover:text-destructive"
+									class="text-destructive hover:text-destructive cursor-pointer"
 									onclick={() => {
 										deleteUserId = user.id;
 										deleteUserName = user.name;

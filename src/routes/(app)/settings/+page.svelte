@@ -42,7 +42,7 @@
 	<div class="flex gap-1 border-b">
 		{#each tabs as tab}
 			<button
-				class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors
+				class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors cursor-pointer
 					{activeTab === tab.id
 					? 'border-b-2 border-primary text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"

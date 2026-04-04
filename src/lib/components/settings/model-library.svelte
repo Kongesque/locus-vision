@@ -254,7 +254,7 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							class="text-destructive hover:text-destructive"
+							class="text-destructive hover:text-destructive cursor-pointer"
 							disabled={removingModels.has(model.name)}
 							onclick={() => handleRemove(model.name)}
 						>
@@ -321,6 +321,7 @@
 								<Button
 									variant="outline"
 									size="sm"
+									class="cursor-pointer"
 									onclick={() => handleDownload(model.name)}
 								>
 									Retry
@@ -329,6 +330,7 @@
 								<Button
 									variant="outline"
 									size="sm"
+									class="cursor-pointer"
 									onclick={() => handleDownload(model.name)}
 								>
 									<Download class="mr-1.5 size-3.5" />

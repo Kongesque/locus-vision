@@ -34,11 +34,11 @@
 		>
 			<div class="grid gap-4 sm:grid-cols-2">
 				<div class="space-y-2">
-					<Label for="name">Name</Label>
+					<Label for="name" class="cursor-pointer">Name</Label>
 					<Input id="name" name="name" value={data.user?.name ?? ''} placeholder="Your name" />
 				</div>
 				<div class="space-y-2">
-					<Label for="email">Email</Label>
+					<Label for="email" class="cursor-pointer">Email</Label>
 					<Input
 						id="email"
 						name="email"
@@ -57,7 +57,7 @@
 			{/if}
 
 			<div class="flex justify-end pt-4">
-				<Button type="submit" disabled={loading === 'account'}>
+				<Button type="submit" disabled={loading === 'account'} class="cursor-pointer">
 					{loading === 'account' ? 'Saving…' : 'Save Changes'}
 				</Button>
 			</div>
@@ -70,7 +70,7 @@
 					<p class="text-xs text-muted-foreground">Log out of your account on this device.</p>
 				</div>
 				<form method="POST" action="/logout">
-					<Button type="submit" variant="outline" size="sm">Log Out</Button>
+					<Button type="submit" variant="outline" size="sm" class="cursor-pointer">Log Out</Button>
 				</form>
 			</div>
 		</div>

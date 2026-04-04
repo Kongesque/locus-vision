@@ -41,7 +41,7 @@
 			class="space-y-4"
 		>
 			<div class="space-y-2">
-				<Label for="current_password">Current Password</Label>
+				<Label for="current_password" class="cursor-pointer">Current Password</Label>
 				<Input
 					id="current_password"
 					name="current_password"
@@ -52,7 +52,7 @@
 			</div>
 			<div class="grid gap-4 sm:grid-cols-2">
 				<div class="space-y-2">
-					<Label for="new_password">New Password</Label>
+					<Label for="new_password" class="cursor-pointer">New Password</Label>
 					<Input
 						id="new_password"
 						name="new_password"
@@ -62,7 +62,7 @@
 					/>
 				</div>
 				<div class="space-y-2">
-					<Label for="confirm_password">Confirm New Password</Label>
+					<Label for="confirm_password" class="cursor-pointer">Confirm New Password</Label>
 					<Input
 						id="confirm_password"
 						name="confirm_password"
@@ -78,7 +78,7 @@
 			{/if}
 
 			<div class="flex justify-end">
-				<Button type="submit" disabled={loading === 'password'}>
+				<Button type="submit" disabled={loading === 'password'} class="cursor-pointer">
 					{loading === 'password' ? 'Changing…' : 'Change Password'}
 				</Button>
 			</div>
@@ -102,7 +102,7 @@
 					Revoke all active sessions. You will need to log in again on every device.
 				</p>
 			</div>
-			<Button variant="outline" size="sm" onclick={() => (signOutAllDialog = true)}>
+			<Button variant="outline" size="sm" onclick={() => (signOutAllDialog = true)} class="cursor-pointer">
 				Sign Out Everywhere
 			</Button>
 		</div>
@@ -129,7 +129,7 @@
 					Permanently delete your account and all associated data.
 				</p>
 			</div>
-			<Button variant="destructive" size="sm" onclick={() => (deleteAccountDialog = true)}>
+			<Button variant="destructive" size="sm" onclick={() => (deleteAccountDialog = true)} class="cursor-pointer">
 				Delete Account
 			</Button>
 		</div>
@@ -158,7 +158,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<div class="py-4">
-			<Label for="confirm-delete-account" class="text-sm font-medium">
+			<Label for="confirm-delete-account" class="text-sm font-medium cursor-pointer">
 				Type <code class="rounded bg-muted px-1">DELETE</code> to confirm
 			</Label>
 			<Input
@@ -183,6 +183,7 @@
 					type="submit"
 					variant="destructive"
 					disabled={deleteAccountConfirmText !== 'DELETE'}
+					class="cursor-pointer"
 					onclick={() => {
 						deleteAccountDialog = false;
 						deleteAccountConfirmText = '';
@@ -213,7 +214,7 @@
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel onclick={() => (signOutAllDialog = false)}>Cancel</AlertDialog.Cancel>
 			<form method="POST" action="?/revokeSessions" use:enhance class="inline">
-				<Button type="submit" variant="destructive" onclick={() => (signOutAllDialog = false)}
+				<Button type="submit" variant="destructive" onclick={() => (signOutAllDialog = false)} class="cursor-pointer"
 					>Sign Out Everywhere</Button
 				>
 			</form>
