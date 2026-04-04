@@ -154,11 +154,11 @@ def get_heatmap_data(
     SELECT x, y
     FROM object_tracks
     WHERE camera_id = ? AND timestamp >= ? AND timestamp <= ?
-    USING SAMPLE ?
+    LIMIT ?
     """
-    
+
     try:
-        # We sample the tracks to avoid sending millions of points to the frontend
+        # We limit the tracks to avoid sending millions of points to the frontend
         results = db_client.conn.execute(query, [camera_id, start_time, end_time, limit]).fetchall()
         
         points = [{"x": row[0], "y": row[1], "value": 1} for row in results]
