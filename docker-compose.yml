@@ -11,9 +11,10 @@ services:
       - "c 81:* rmw"  # Allow video4linux devices
     group_add:
       - video
-    env_file:
-      - .env
     environment:
+      # JWT secret is auto-generated on first run and persisted to the data volume.
+      # Override here only if you need a stable secret (e.g. multi-replica setups).
+      # - LOCUS_JWT_SECRET=your-secret-here
       - PORT=3000
     restart: unless-stopped
 
