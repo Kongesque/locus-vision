@@ -124,40 +124,83 @@ async def upload_model(file: UploadFile = File(...)):
                     )
                 f.write(chunk)
 
-        # Validate ONNX magic bytes (protobuf header for ONNX starts with \x08)
-        with open(tmp_path, "rb") as f:
-            header = f.read(8)
-        if len(header) < 4:
-            raise HTTPException(status_code=400, detail="File is too small to be a valid ONNX model")
-
-        # Try loading with onnxruntime to validate
+        # Validate with onnxruntime: load and check structure
         import onnxruntime as ort
         try:
             session = ort.InferenceSession(tmp_path, providers=["CPUExecutionProvider"])
-            input_meta = session.get_inputs()[0]
-            output_meta = session.get_outputs()[0]
-            logger.info(
-                "Validated ONNX model: input=%s %s, output=%s %s",
-                input_meta.name, input_meta.shape,
-                output_meta.name, output_meta.shape,
-            )
-            del session
         except Exception as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid ONNX model: {e}"
+                detail=f"Invalid ONNX file — could not load model: {e}"
             )
+
+        try:
+            input_meta = session.get_inputs()[0]
+            output_meta = session.get_outputs()[0]
+            in_shape = input_meta.shape   # expect [1, 3, H, W]
+            out_shape = output_meta.shape  # expect [1, 4+num_classes, N]
+
+            warnings = []
+
+            # Validate input shape: [batch, 3, H, W]
+            if len(in_shape) != 4:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported input shape {in_shape}. Expected [1, 3, H, W] for YOLO models."
+                )
+            if isinstance(in_shape[1], int) and in_shape[1] != 3:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Expected 3 input channels, got {in_shape[1]}. This doesn't appear to be an RGB image model."
+                )
+
+            # Validate output shape: [1, 4+num_classes, N]
+            if len(out_shape) == 3:
+                # Determine which dim is the "attributes" dim (4 + num_classes)
+                # YOLO outputs [1, 84, N] where 84 < N typically, or [1, N, 84]
+                dim1 = out_shape[1] if isinstance(out_shape[1], int) else None
+                dim2 = out_shape[2] if isinstance(out_shape[2], int) else None
+
+                num_classes = None
+                if dim1 is not None and dim1 >= 5:
+                    num_classes = dim1 - 4  # attrs dim is [1]
+                if dim2 is not None and dim2 >= 5 and (num_classes is None or dim2 < dim1):
+                    num_classes = dim2 - 4  # attrs dim is [2]
+
+                if num_classes is not None and num_classes != 80:
+                    warnings.append(
+                        f"Model has {num_classes} classes (COCO has 80). "
+                        f"Detection will work but class labels may not match."
+                    )
+            else:
+                warnings.append(
+                    f"Unexpected output shape {out_shape}. "
+                    f"Expected [1, 4+num_classes, N] for YOLO detection models."
+                )
+
+            logger.info(
+                "Validated ONNX model: input=%s %s, output=%s %s",
+                input_meta.name, in_shape,
+                output_meta.name, out_shape,
+            )
+        finally:
+            del session
 
         # Atomic rename
         os.replace(tmp_path, target_path)
         size_mb = round(total_size / (1024 * 1024), 1)
         logger.info("Uploaded model: %s (%.1f MB)", target_filename, size_mb)
 
-        return {
+        result = {
             "filename": target_filename,
             "model_name": safe_name,
             "size_mb": size_mb,
+            "input_shape": [s if isinstance(s, int) else None for s in in_shape],
+            "output_shape": [s if isinstance(s, int) else None for s in out_shape],
         }
+        if warnings:
+            result["warnings"] = warnings
+        return result
 
     except HTTPException:
         raise

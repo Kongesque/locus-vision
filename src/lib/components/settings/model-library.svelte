@@ -46,6 +46,7 @@
 	let uploadState = $state<'idle' | 'uploading' | 'success' | 'error'>('idle');
 	let uploadProgress = $state('');
 	let uploadError = $state('');
+	let uploadWarnings = $state<string[]>([]);
 
 	let installedModels = $derived(models.filter((m) => m.installed));
 	let availableModels = $derived(models.filter((m) => !m.installed));
@@ -203,6 +204,7 @@
 		uploadState = 'uploading';
 		uploadProgress = `Uploading ${file.name}...`;
 		uploadError = '';
+		uploadWarnings = [];
 
 		try {
 			const formData = new FormData();
@@ -221,12 +223,14 @@
 			const result = await res.json();
 			uploadState = 'success';
 			uploadProgress = `${result.filename} uploaded (${result.size_mb} MB)`;
+			uploadWarnings = result.warnings ?? [];
 			await refreshModels();
 
 			setTimeout(() => {
 				uploadState = 'idle';
 				uploadProgress = '';
-			}, 3000);
+				uploadWarnings = [];
+			}, 5000);
 		} catch (err) {
 			uploadState = 'error';
 			uploadError = err instanceof Error ? err.message : 'Upload failed';
@@ -308,6 +312,9 @@
 			{:else if uploadState === 'success'}
 				<Check class="size-8 text-green-500" />
 				<p class="text-sm text-green-600">{uploadProgress}</p>
+				{#each uploadWarnings as warning (warning)}
+					<p class="text-xs text-yellow-600">{warning}</p>
+				{/each}
 			{:else if uploadState === 'error'}
 				<AlertCircle class="size-8 text-destructive" />
 				<p class="text-sm text-destructive">{uploadError}</p>
