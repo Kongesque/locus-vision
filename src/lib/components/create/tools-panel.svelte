@@ -149,8 +149,8 @@
 	}
 </script>
 
-<Card.Root class="flex h-full flex-col overflow-hidden">
-	<div bind:this={scrollContainer} class="flex-1 min-h-0 overflow-y-auto p-3">
+<Card.Root class="flex h-full flex-col gap-0 overflow-hidden py-0">
+	<div bind:this={scrollContainer} class="min-h-0 flex-1 overflow-y-auto p-3">
 		<div class="space-y-3">
 			<h3 class="text-md font-semibold">Create</h3>
 			<Separator />
