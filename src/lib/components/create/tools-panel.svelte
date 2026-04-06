@@ -149,10 +149,10 @@
 	}
 </script>
 
-<Card.Root class="flex flex-col overflow-hidden">
+<Card.Root class="flex h-full flex-col overflow-hidden">
 	<div bind:this={scrollContainer} class="flex-1 min-h-0 overflow-y-auto p-3">
 		<div class="space-y-3">
-			<h3 class="text-sm font-semibold">Create</h3>
+			<h3 class="text-md font-semibold">Create</h3>
 			<Separator />
 
 			<!-- Model Selection -->
