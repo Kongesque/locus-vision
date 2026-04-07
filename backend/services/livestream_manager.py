@@ -183,7 +183,11 @@ class StreamContext:
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                # For live streams, a failed read means the stream died — reconnect
+                print(f"[Livestream] Lost connection to {self.camera_id}, reconnecting...")
+                cap.release()
+                time.sleep(1)
+                cap = create_video_capture(self.source, enable_hw_accel=self.enable_hw_accel)
                 continue
             
             current_time = time.time()
@@ -219,7 +223,7 @@ class StreamContext:
                 self._last_db_flush = current_time
 
             # Encode to JPEG
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
             if ret:
                 frame_bytes = buffer.tobytes()
                 for q in self.video_clients:

@@ -45,12 +45,13 @@ MTX_PID=$!
 
 sleep 1
 
-# Loop the video and push it to mediamtx
+# Loop the video and push it to mediamtx over TCP
 ffmpeg \
   -re \
   -stream_loop -1 \
   -i "$VIDEO" \
   -c:v libx264 -preset ultrafast -tune zerolatency \
-  -c:a aac \
-  -f rtsp \
+  -g 30 -keyint_min 30 \
+  -an \
+  -f rtsp -rtsp_transport tcp \
   "rtsp://localhost:${RTSP_PORT}/${STREAM_PATH}"
