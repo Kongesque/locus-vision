@@ -365,6 +365,28 @@ class TestUploadEndpoint:
         if os.path.exists(uploaded_path):
             os.remove(uploaded_path)
 
+    def test_upload_rejects_duplicate(self, client, real_onnx_path):
+        """Uploading a model with the same name twice is rejected."""
+        with open(real_onnx_path, "rb") as f:
+            resp1 = client.post(
+                "/api/models/upload",
+                files={"file": ("duplicate_test.onnx", f, "application/octet-stream")},
+            )
+        assert resp1.status_code == 200
+
+        with open(real_onnx_path, "rb") as f:
+            resp2 = client.post(
+                "/api/models/upload",
+                files={"file": ("duplicate_test.onnx", f, "application/octet-stream")},
+            )
+        assert resp2.status_code == 409
+        assert "already exists" in resp2.json()["detail"]
+
+        # Clean up
+        uploaded_path = os.path.join(MODELS_DIR, "duplicate_test.onnx")
+        if os.path.exists(uploaded_path):
+            os.remove(uploaded_path)
+
     def test_upload_no_filename(self, client):
         from io import BytesIO
         file_data = BytesIO(b"content")

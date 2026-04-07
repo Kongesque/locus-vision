@@ -228,10 +228,18 @@ async def upload_model(file: UploadFile = File(...)):
     if not safe_name:
         raise HTTPException(status_code=400, detail="Invalid filename")
 
-    target_filename = f"{safe_name}{ext}"
+    # For .pt files, the final output is .onnx — check that name for conflicts
+    final_ext = ".onnx" if ext == ".pt" else ext
+    target_filename = f"{safe_name}{final_ext}"
     target_path = os.path.join(MODELS_DIR, target_filename)
-    tmp_path = target_path + ".tmp"
 
+    if os.path.exists(target_path):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Model '{target_filename}' already exists. Delete it first or rename your file."
+        )
+
+    tmp_path = target_path + ".tmp"
     os.makedirs(MODELS_DIR, exist_ok=True)
 
     try:
