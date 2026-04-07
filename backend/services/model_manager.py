@@ -179,19 +179,23 @@ def resolve_model(model_name: str, catalog: dict, backends: list[str]) -> dict:
 
 def get_installed_models(catalog: dict, backends: list[str]) -> list[dict]:
     """
-    Return a list of all catalog models with their installation and resolution status.
+    Return a list of all catalog models with their installation and resolution status,
+    plus any user-uploaded models not in the catalog.
 
     Each entry includes:
-      - name, label, family, purpose, classes (from catalog)
+      - name, label, family, purpose, classes (from catalog or inferred)
       - installed: bool — whether at least one usable format exists on disk
       - active_format: str | None — the format that would be used
       - size_mb: float | None — size of the active format file
       - fps_estimate: float | None — estimated FPS (if known)
       - available_formats: list[str] — formats compatible with detected hardware
+      - user_uploaded: bool — True if not from the catalog
     """
     results = []
+    catalog_names = set()
 
     for name, model in catalog.get("models", {}).items():
+        catalog_names.add(name)
         entry: dict[str, Any] = {
             "name": name,
             "label": model.get("label", name),
@@ -203,6 +207,7 @@ def get_installed_models(catalog: dict, backends: list[str]) -> list[dict]:
             "size_mb": None,
             "fps_estimate": None,
             "available_formats": [],
+            "user_uploaded": False,
         }
 
         # Determine which formats are compatible with this hardware
@@ -227,6 +232,37 @@ def get_installed_models(catalog: dict, backends: list[str]) -> list[dict]:
                 entry["fps_estimate"] = fmt_info.get("fps_estimate")
 
         results.append(entry)
+
+    # Scan for user-uploaded models not in the catalog
+    _EXT_TO_FORMAT = {".onnx": "onnx_fp32", ".tflite": "tflite"}
+
+    if os.path.exists(MODELS_DIR):
+        seen_names: set[str] = set()
+        for filename in sorted(os.listdir(MODELS_DIR)):
+            name_part, ext = os.path.splitext(filename)
+            if ext not in _EXT_TO_FORMAT:
+                continue
+            if name_part in catalog_names or name_part in seen_names:
+                continue
+            seen_names.add(name_part)
+
+            file_path = os.path.join(MODELS_DIR, filename)
+            size_bytes = os.path.getsize(file_path)
+            fmt = _EXT_TO_FORMAT[ext]
+
+            results.append({
+                "name": name_part,
+                "label": name_part,
+                "family": "custom",
+                "purpose": "detection",
+                "classes": "unknown",
+                "installed": True,
+                "active_format": fmt,
+                "size_mb": round(size_bytes / (1024 * 1024), 1),
+                "fps_estimate": None,
+                "available_formats": [fmt],
+                "user_uploaded": True,
+            })
 
     return results
 

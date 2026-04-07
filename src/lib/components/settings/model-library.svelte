@@ -29,6 +29,7 @@
 		size_mb: number | null;
 		fps_estimate: number | null;
 		available_formats: string[];
+		user_uploaded?: boolean;
 	}
 
 	interface Props {
@@ -59,7 +60,8 @@
 			onnx_coreml: 'CoreML',
 			onnx_int8: 'CPU INT8',
 			onnx_fp16: 'CPU FP16',
-			onnx_fp32: 'CPU FP32'
+			onnx_fp32: 'CPU FP32',
+			tflite: 'TFLite'
 		};
 		return map[backend] ?? backend;
 	}
@@ -365,9 +367,13 @@
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">
 								<p class="font-medium">{model.label}</p>
-								<Badge variant="outline" class="text-xs">
-									{formatPurpose(model.purpose)}
-								</Badge>
+								{#if model.user_uploaded}
+									<Badge variant="secondary" class="text-xs">Custom</Badge>
+								{:else}
+									<Badge variant="outline" class="text-xs">
+										{formatPurpose(model.purpose)}
+									</Badge>
+								{/if}
 							</div>
 							<div
 								class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
