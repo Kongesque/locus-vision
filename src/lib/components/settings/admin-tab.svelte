@@ -8,7 +8,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Select from '$lib/components/ui/select/index.js';
+	import * as NativeSelect from '$lib/components/ui/native-select/index.js';
 	import { AlertTriangle, Database } from '@lucide/svelte';
 
 	interface Props {
@@ -101,26 +101,18 @@
 					</p>
 				</div>
 				<div class="flex items-center gap-2">
-					<Select.Root
-						type="single"
+					<NativeSelect.Root
 						name="default_model"
 						value={data.appSettings?.default_model ?? 'yolo11n'}
-						onValueChange={() => {
+						class="w-[200px] cursor-pointer"
+						onchange={() => {
 							setTimeout(() => defaultModelForm?.requestSubmit(), 0);
 						}}
 					>
-						<Select.Trigger class="w-[200px] cursor-pointer">
-							{data.modelRegistry?.models?.find(
-								(m: { name: string; label: string }) =>
-									m.name === (data.appSettings?.default_model ?? 'yolo11n')
-							)?.label ?? 'Select model'}
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.modelRegistry?.models ?? [] as model (model.name)}
-								<Select.Item value={model.name} label={model.label} />
-							{/each}
-						</Select.Content>
-					</Select.Root>
+						{#each data.modelRegistry?.models ?? [] as model (model.name)}
+							<NativeSelect.Option value={model.name}>{model.label}</NativeSelect.Option>
+						{/each}
+					</NativeSelect.Root>
 				</div>
 			</div>
 		</form>
